@@ -9,7 +9,9 @@ FOX's SkullAPI v1.0.0-dev
 ---@diagnostic disable: undefined-doc-name, undefined-field
 ---@type FOXSkullAPI.Events
 local events = require("./util/Events")
-local get = require("./core/FOXSkull") --[[@as FOXSkull]].get
+---@type FOXSkull
+local skull = require("./core/FOXSkull")
+local get = skull.get
 
 ---@class FOXSkulls
 ---@field block_init FOXSkullAPI.Events.block
@@ -40,4 +42,5 @@ local skulls = setmetatable({}, {
 for _, script in pairs(listFiles("./methods", true)) do
 	require(script)
 end
+
 return skulls

@@ -38,7 +38,7 @@ function anyClass:setTexture(tex, pose)
 		:scale(priv.res)
 		:visible(false)
 
-	local sprite = priv.flatModel:newSprite("north") --[[@as SpriteTask]]
+	local sprite = priv.flatModel:newSprite("north")
 		:pos(pvt)
 		:texture(tex, w, h)
 		:size(w, h)
