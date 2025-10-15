@@ -45,12 +45,18 @@ local call = {
 	init = function(skull)
 		local state = initState[type(skull)]
 		if not state then return end
-		state(skull)
+		---@type boolean, string
+		local success, result = pcall(state, skull)
+		if success then return end
+		skull[1].error = result and result:gsub("\9", "  ") or true
 	end,
 	deinit = function(skull)
 		local state = deinitState[type(skull)]
 		if not state then return end
-		state(skull)
+		---@type boolean, string
+		local success, result = pcall(state, skull)
+		if success then return end
+		skull[1].error = result and result:gsub("\9", "  ") or true
 	end,
 }
 

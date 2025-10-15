@@ -57,14 +57,7 @@ function anyClass:setTexture(tex, pose)
 	priv.bakedPivot = models:newPart(name):parentType("Skull")
 	priv.bakedModel = bakedModel:copy("bakedModel"):moveTo(priv.bakedPivot)
 
-	if not priv.bakedModel:getTask("up-1") then -- Figura <0.1.6
-		tex = textures:fromVanilla("errMissing", "textures/block/stone.png")
-		priv.bakedModel = bakery.getModel(tex):moveTo(priv.bakedPivot)
-		textures:fromVanilla("errMissing", "textures/block/stone.png")
-
-		priv.res = 1
-		pvt = vec(8, 8, -0.5)
-	end
+	assert(priv.bakedModel:getTask("up-1"), "Failed to copy baked item model! Please update Figura to 0.1.6")
 
 	pose = pose and string.upper(pose) or "DEFAULT"
 

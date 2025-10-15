@@ -7,6 +7,7 @@
 ---@field timestamp number
 ---@field visible boolean?
 ---@field uuid string
+---@field error any?
 
 ---@alias FOXSkull.block.render fun(delta: number, skull: FOXSkull.block)
 ---@alias FOXSkull.item.render fun(delta: number, skull: FOXSkull.item)
@@ -84,7 +85,7 @@ end
 ---@overload fun(key: ItemStack): FOXSkull.item?
 ---@overload fun(key: Vector3): FOXSkull.block?
 function skull.get(key)
-	return all[getID(key)]
+	return all[getID(key) or key]
 end
 
 local get = skull.get
@@ -130,7 +131,7 @@ function skull.new(key)
 	local priv = {
 		visible = true,
 		uuid = client.intUUIDToString(client.generateUUID()),
-		timestamp = client.getSystemTime()
+		timestamp = client.getSystemTime(),
 	}
 
 	self[1] = priv
@@ -157,7 +158,7 @@ function skull.remove(key)
 	call.deinit(self)
 
 	uuids[self[1].uuid] = nil
-	all[getID(key)] = nil
+	all[getID(key) or key] = nil
 
 	if self[1].model then self[1].model:getParent():remove() end
 end
@@ -166,6 +167,14 @@ local remove = skull.remove
 
 --#ENDREGION
 --#REGION ˚♡ Render ♡˚
+
+local vanillaSkull = models:newPart("vanillaSkull", "Skull")
+	:newItem("Skull")
+	:pos(0, 8, 0)
+	:item("minecraft:player_head")
+	:visible(false)
+
+pcall(vanillaSkull.item, vanillaSkull, "minecraft:player_head" .. toJson { SkullOwner = avatar:getEntityName() })
 
 ---@type ModelPart
 local model
@@ -181,10 +190,13 @@ function events.skull_render(delta, block, item, entity, context)
 
 	priv.timestamp = client.getSystemTime()
 
-	if self.visible then
-		if model then model:visible(false) end
+	if model then model:visible(false) end
+	model = nil
 
-		if priv.flatModel and context == "GUI" then
+	if priv.error then
+		model = vanillaSkull
+	elseif priv.visible then
+		if priv.flatModel and (context == "GUI" or context == "OTHER") then
 			model = priv.flatModel
 		elseif priv.bakedModel and not priv.model then
 			local mat = priv.itemMats[context]
@@ -193,9 +205,11 @@ function events.skull_render(delta, block, item, entity, context)
 		else
 			model = priv.model
 		end
-
-		if model then model:visible(true) end
 	end
+
+	if model then model:visible(true) end
+
+	if priv.error then return end
 
 	if self.render then self.render(delta, self) end
 
@@ -207,7 +221,7 @@ end
 
 function events.world_tick()
 	for _, self in pairs(all) do
-		if self.tick then self.tick(self) end
+		if self.tick and not self[1].error then self.tick(self) end
 	end
 end
 

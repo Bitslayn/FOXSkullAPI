@@ -18,6 +18,7 @@ local dirs = {
 ---@param distance number?
 ---@param invert boolean?
 ---@return BlockState
+---@nodiscard
 function blockClass:getAttachedBlock(distance, invert)
 	local block = self.block
 
@@ -34,6 +35,7 @@ end
 
 ---Gets the visual center position of this skull in the world
 ---@return Vector3
+---@nodiscard
 function blockClass:getCenterPos()
 	local block = self.block
 
@@ -48,6 +50,7 @@ end
 
 ---Gets the direction this skull is facing
 ---@return Vector3
+---@nodiscard
 function blockClass:getDir()
 	local block = self.block
 
@@ -65,8 +68,10 @@ end
 --#REGION ˚♡ Floor ♡˚
 
 ---Aligns the skull model to the floor below it
+---@param distance number
+---@return self
 function blockClass:alignToFloor(distance)
-	if not self[1].model then return end
+	if not self[1].model then return self end
 
 	distance = distance or 1.25
 
@@ -74,8 +79,19 @@ function blockClass:alignToFloor(distance)
 	local endPos = startPos - vec(0, distance, 0)
 
 	local _, hit = raycast:block(startPos, endPos, "OUTLINE", "NONE")
-	if hit == endPos then return end
+	if hit == endPos then return self end
 	self[1].model:pos(0, (startPos - hit):length() * -16)
+
+	return self
 end
 
 --#ENDREGION
+
+---@return integer
+---@nodiscard
+function blockClass:getRedstoneLevel()
+	local pos = self.block:getPos()
+	local level = world.getRedstonePower(pos)
+
+	return level
+end

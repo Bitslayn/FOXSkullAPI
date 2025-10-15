@@ -37,6 +37,7 @@ local skulls = setmetatable({}, {
 	end,
 	__type = "FOXSkullAPI",
 	__version = "1.0.0",
+	__branch = "dev"
 })
 
 for _, script in pairs(listFiles("./methods", true)) do
