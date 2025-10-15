@@ -168,13 +168,12 @@ local remove = skull.remove
 --#ENDREGION
 --#REGION ˚♡ Render ♡˚
 
-local vanillaSkull = models:newPart("vanillaSkull", "Skull")
-	:newItem("Skull")
+local vanillaSkull = models:newPart("vanillaSkull", "Skull"):visible(false)
+local skullItem = vanillaSkull:newItem("Skull")
 	:pos(0, 8, 0)
 	:item("minecraft:player_head")
-	:visible(false)
 
-pcall(vanillaSkull.item, vanillaSkull, "minecraft:player_head" .. toJson { SkullOwner = avatar:getEntityName() })
+pcall(skullItem.item, skullItem, "minecraft:player_head" .. toJson { SkullOwner = avatar:getEntityName() })
 
 ---@type ModelPart
 local model

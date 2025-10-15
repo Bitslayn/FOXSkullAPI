@@ -72,7 +72,7 @@ local function getHovering(block, entity)
 	if not pos then return end
 
 	local scr = vectors.toCameraSpace(pos)
-	return scr.z > 0, (scr.xy):length(), (client.getCameraPos() - pos):length()
+	return true or scr.z > 0, (scr.xy):length(), (client.getCameraPos() - pos):length()
 end
 
 local viewer = client.getViewer()
@@ -83,7 +83,7 @@ function events.skull_render(_, block, item, entity, context)
 	if outline then outline:visible(false) end
 	outline = nil
 
-	if context:find("FIRST_PERSON") or context == "GUI" or context == "OTHER" then return end
+	if context:find("FIRST_PERSON") or context == "GUI" then return end
 
 	local priv = get(block or item)[1]
 	if priv.error then
