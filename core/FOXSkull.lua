@@ -7,7 +7,7 @@
 ---@field timestamp number
 ---@field visible boolean?
 ---@field uuid string
----@field error any?
+---@field error string?
 ---@field contexts {[string]: any[]}
 
 ---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block)
@@ -49,12 +49,11 @@ local skull = {
 		try = function(self, f, ...)
 			local success, result = pcall(f, ...)
 			if not success then
-				if type(result) == "string" then
-					result = result
+				result = "§c" .. tostring(result)
 					:gsub("\9", "  ")
-					:gsub("[^\n]*SkullAPI.*$", "  [SkullAPI]: in core")
-				end
-				self[1].error = result or true
+					:gsub("[^\n]*SkullAPI.*$", "  [SkullAPI]: in ?")
+
+				self[1].error = result
 			end
 			return self
 		end,

@@ -89,17 +89,12 @@ function events.skull_render(_, block, item, entity, context)
 	if priv.error then
 		outline = outlines.error
 
-		if type(priv.error) == "string" then
-			local visible, offset, distance = getHovering(block, entity)
-			local isHovering = visible and offset < 0.75 and distance < 8
+		local visible, offset, distance = getHovering(block, entity)
+		local isHovering = visible and offset < 0.75 and distance < 8
 
-			local tooltip = outline.text.pvt:getTask("tooltip") --[[@as TextTask]]
-
-			tooltip:visible(isHovering)
-			if isHovering then
-				tooltip:text("§c" .. priv.error)
-			end
-		end
+		outline.text.pvt:getTask("tooltip") --[[@as TextTask]]
+			:visible(isHovering)
+			:text(priv.error or nil)
 	elseif block and (get(viewer:getHeldItem()) or get(viewer:getHeldItem(true))) then
 		local visible, offset, distance = getHovering(block, entity)
 		local isHovering = visible and offset < 0.75 and distance < 16
