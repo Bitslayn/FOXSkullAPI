@@ -34,7 +34,15 @@
 ---@field package __index FOXSkull.any
 
 ---@class FOXSkull
-local skull = { class = {} }
+local skull = {
+	---@class FOXSkull.any
+	class = {
+		try = function(self, func, ...)
+			local success, result = pcall(func, ...)
+			if not success then self[1].error = result and result:gsub("\9", "  ") or true end
+		end,
+	}
+}
 
 ---@alias FOXSkull.key.internalID string
 ---@type table<FOXSkull.key.internalID, FOXSkull.any>
@@ -227,8 +235,7 @@ function events.skull_render(delta, block, item, entity, context)
 	if model then model:visible(true) end
 
 	if self.render and not priv.error then
-		local success, result = pcall(self.render, delta, self)
-		if not success then priv.error = result:gsub("\9", "  ") or true end
+		self:try(self.render, delta, self)
 	end
 end
 
@@ -241,8 +248,7 @@ function events.world_tick()
 		if self.tick and not priv.error then
 			for _, params in pairs(priv.contexts) do
 				self.entity = params[1]
-				local success, result = pcall(self.tick, self)
-				if not success then priv.error = result:gsub("\9", "  ") or true end
+				self:try(self.tick, self)
 			end
 		end
 	end

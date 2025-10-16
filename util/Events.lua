@@ -42,21 +42,17 @@ local deinitState = {
 
 ---@class FOXSkullAPI.Events.call
 local call = {
+	---@param skull FOXSkull.any
 	init = function(skull)
 		local state = initState[type(skull)]
 		if not state then return end
-		---@type boolean, string
-		local success, result = pcall(state, skull)
-		if success then return end
-		skull[1].error = result and result:gsub("\9", "  ") or true
+		skull:try(state, skull)
 	end,
+	---@param skull FOXSkull.any
 	deinit = function(skull)
 		local state = deinitState[type(skull)]
 		if not state then return end
-		---@type boolean, string
-		local success, result = pcall(state, skull)
-		if success then return end
-		skull[1].error = result and result:gsub("\9", "  ") or true
+		skull:try(state, skull)
 	end,
 }
 
