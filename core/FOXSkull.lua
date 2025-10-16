@@ -8,6 +8,7 @@
 ---@field visible boolean?
 ---@field uuid string
 ---@field error any?
+---@field contexts {[string]: Entity}
 
 ---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block)
 ---@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item)
@@ -22,11 +23,11 @@
 ---@field tick FOXSkull.block.tick?
 ---@class FOXSkull.item: FOXSkull.any
 ---@field item ItemStack
+---@field entity Entity
 ---@field render FOXSkull.item.render?
 ---@field tick FOXSkull.item.tick?
 ---@class FOXSkull.any
 ---@field context Event.SkullRender.context
----@field entity Entity
 ---@field render FOXSkull.any.render?
 ---@field tick FOXSkull.any.tick?
 ---@field package [1] FOXSkull.any.private
@@ -132,6 +133,7 @@ function skull.new(key)
 		visible = true,
 		uuid = client.intUUIDToString(client.generateUUID()),
 		timestamp = client.getSystemTime(),
+		contexts = {},
 	}
 
 	self[1] = priv
@@ -177,17 +179,26 @@ pcall(skullItem.item, skullItem, "minecraft:player_head" .. toJson { SkullOwner 
 
 ---@type ModelPart
 local model
+---@type number
+local sharedDelta
 function events.skull_render(delta, block, item, entity, context)
 	---@type FOXSkull.any
 	local self = get(block or item) or new(block or item)
 	local priv = self[1]
+
+	local time = client.getSystemTime()
+	if priv.timestamp ~= time and sharedDelta ~= delta then
+		priv.contexts = {}
+	end
+	priv.timestamp = time
+	sharedDelta = delta
 
 	self.block = block
 	self.item = item
 	self.entity = entity
 	self.context = context
 
-	priv.timestamp = client.getSystemTime()
+	priv.contexts[context] = entity
 
 	if model then model:visible(false) end
 	model = nil
@@ -220,7 +231,13 @@ end
 
 function events.world_tick()
 	for _, self in pairs(all) do
-		if self.tick and not self[1].error then self.tick(self) end
+		local priv = self[1]
+		if self.tick and not priv.error then
+			for _, entity in pairs(priv.contexts) do
+				self.entity = entity
+				self.tick(self)
+			end
+		end
 	end
 end
 
