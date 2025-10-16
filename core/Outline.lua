@@ -89,7 +89,7 @@ function events.skull_render(_, block, item, entity, context)
 	if priv.error then
 		outline = outlines.error
 
-		if priv.error and priv.error ~= true then
+		if type(priv.error) == "string" then
 			local visible, offset, distance = getHovering(block, entity)
 			local isHovering = visible and offset < 0.75 and distance < 8
 

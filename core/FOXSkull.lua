@@ -39,7 +39,7 @@ local skull = {
 	class = {
 		---Catches an internal skull error
 		---
-		---Functions the same as a pcall 
+		---Functions the same as a pcall
 		---@generic self
 		---@param self self
 		---@param f function
@@ -48,10 +48,17 @@ local skull = {
 		---@package
 		try = function(self, f, ...)
 			local success, result = pcall(f, ...)
-			if not success then self[1].error = result and result:gsub("\9", "  ") or true end
+			if not success then
+				if type(result) == "string" then
+					result = result
+					:gsub("\9", "  ")
+					:gsub("[^\n]*SkullAPI.*$", "  [SkullAPI]: in core")
+				end
+				self[1].error = result or true
+			end
 			return self
 		end,
-	}
+	},
 }
 
 ---@alias FOXSkull.key.internalID string
