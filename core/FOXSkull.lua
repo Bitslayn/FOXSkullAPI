@@ -226,7 +226,10 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if model then model:visible(true) end
 
-	if self.render and not priv.error then self.render(delta, self) end
+	if self.render and not priv.error then
+		local success, result = pcall(self.render, delta, self)
+		if success then priv.error = result end
+	end
 end
 
 --#ENDREGION
@@ -238,7 +241,8 @@ function events.world_tick()
 		if self.tick and not priv.error then
 			for _, params in pairs(priv.contexts) do
 				self.entity = params[1]
-				self.tick(self)
+				local success, result = pcall(self.tick, self)
+				if success then priv.error = result end
 			end
 		end
 	end
