@@ -9,26 +9,26 @@
 ---@field uuid string
 ---@field error any?
 
----@alias FOXSkull.block.render fun(delta: number, skull: FOXSkull.block)
----@alias FOXSkull.item.render fun(delta: number, skull: FOXSkull.item)
----@alias FOXSkull.any.render fun(delta: number, skull: FOXSkull.any)
----@alias FOXSkull.block.tick fun(skull: FOXSkull.block)
----@alias FOXSkull.item.tick fun(skull: FOXSkull.item)
----@alias FOXSkull.any.tick fun(skull: FOXSkull.any)
+---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block)
+---@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item)
+---@alias FOXSkull.any.render fun(delta: number, self: FOXSkull.any)
+---@alias FOXSkull.block.tick fun(self: FOXSkull.block)
+---@alias FOXSkull.item.tick fun(self: FOXSkull.item)
+---@alias FOXSkull.any.tick fun(self: FOXSkull.any)
 
 ---@class FOXSkull.block: FOXSkull.any
 ---@field block BlockState
----@field render FOXSkull.block.render
----@field tick FOXSkull.block.tick
+---@field render FOXSkull.block.render?
+---@field tick FOXSkull.block.tick?
 ---@class FOXSkull.item: FOXSkull.any
 ---@field item ItemStack
----@field render FOXSkull.item.render
----@field tick FOXSkull.item.tick
+---@field render FOXSkull.item.render?
+---@field tick FOXSkull.item.tick?
 ---@class FOXSkull.any
 ---@field context Event.SkullRender.context
 ---@field entity Entity
----@field render FOXSkull.any.render
----@field tick FOXSkull.any.tick
+---@field render FOXSkull.any.render?
+---@field tick FOXSkull.any.tick?
 ---@field package [1] FOXSkull.any.private
 ---@field package __index FOXSkull.any
 

@@ -31,20 +31,18 @@ function anyClass:getVisible()
 end
 
 ---Sets the function to run when this skull renders
----@generic self
----@param self self
----@param func fun(skull: self)
----@return self
+---@overload fun(self: FOXSkull.block, func: FOXSkull.block.render): FOXSkull.block
+---@overload fun(self: FOXSkull.item, func: FOXSkull.item.render): FOXSkull.item
+---@overload fun(self: FOXSkull.any, func: FOXSkull.any.render): FOXSkull.any
 function anyClass:setRender(func)
 	self.render = func
 	return self
 end
 
 ---Sets the function to run when this skull ticks
----@generic self
----@param self self
----@param func fun(skull: self)
----@return self
+---@overload fun(self: FOXSkull.block, func: FOXSkull.block.tick): FOXSkull.block
+---@overload fun(self: FOXSkull.item, func: FOXSkull.item.tick): FOXSkull.item
+---@overload fun(self: FOXSkull.any, func: FOXSkull.any.render): FOXSkull.any
 function anyClass:setTick(func)
 	self.tick = func
 	return self
