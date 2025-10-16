@@ -177,6 +177,11 @@ local skullItem = vanillaSkull:newItem("Skull")
 
 pcall(skullItem.item, skullItem, "minecraft:player_head" .. toJson { SkullOwner = avatar:getEntityName() })
 
+local blank = textures:newTexture("", 1, 1)
+
+local invisibleSkull = models:newPart("invisibleSkull", "Skull"):visible(false)
+invisibleSkull:newSprite("Sprite"):setTexture(blank)
+
 ---@type ModelPart
 local model
 ---@type number
@@ -215,15 +220,13 @@ function events.skull_render(delta, block, item, entity, context)
 		else
 			model = priv.model
 		end
+	else
+		model = invisibleSkull
 	end
 
 	if model then model:visible(true) end
 
-	if priv.error then return end
-
-	if self.render then self.render(delta, self) end
-
-	return not priv.visible
+	if self.render and not priv.error then self.render(delta, self) end
 end
 
 --#ENDREGION

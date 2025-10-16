@@ -27,7 +27,7 @@ local function newOutline(color, icon)
 				:translate(0, 0.5)
 
 			outline:newSprite(axis .. rot)
-				:setTexture(blank)
+				:texture(blank)
 				:size(1, 1)
 				:matrix(lineMat)
 				:renderType("LINES")
