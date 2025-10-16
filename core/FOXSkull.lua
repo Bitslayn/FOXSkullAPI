@@ -51,7 +51,7 @@ local skull = {
 			if not success then
 				result = "§c" .. tostring(result)
 					:gsub("\9", "  ")
-					:gsub("[^\n]*SkullAPI.*$", "  [SkullAPI]: in ?")
+					-- :gsub("[^\n]*SkullAPI.*$", "  [SkullAPI]: in ?")
 
 				self[1].error = result
 			end
