@@ -44,6 +44,7 @@ local skull = {
 		---@param self self
 		---@param f function
 		---@param ... any
+		---@return self
 		---@package
 		try = function(self, f, ...)
 			local success, result = pcall(f, ...)
