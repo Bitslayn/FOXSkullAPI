@@ -7,17 +7,17 @@ local anyClass = require("../core/FOXSkull").class
 ---Sets this skull's visibility
 ---@generic self
 ---@param self self
----@param state boolean
+---@param state boolean?
 ---@return self
 function anyClass:setVisible(state)
-	self[1].visible = state
+	self[1].visible = state == nil and true or state
 	return self
 end
 
 ---Sets this skull's visibility
 ---@generic self
 ---@param self self
----@param state boolean
+---@param state boolean?
 ---@return self
 function anyClass:visible(state)
 	return self --[[@as FOXSkull.any]]:setVisible(state)
