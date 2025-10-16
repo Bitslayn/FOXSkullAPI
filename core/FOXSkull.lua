@@ -8,7 +8,7 @@
 ---@field visible boolean?
 ---@field uuid string
 ---@field error any?
----@field contexts {[string]: Entity}
+---@field contexts {[string]: any[]}
 
 ---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block)
 ---@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item)
@@ -198,7 +198,7 @@ function events.skull_render(delta, block, item, entity, context)
 	self.entity = entity
 	self.context = context
 
-	priv.contexts[context] = entity
+	priv.contexts[context] = { entity }
 
 	if model then model:visible(false) end
 	model = nil
@@ -233,8 +233,8 @@ function events.world_tick()
 	for _, self in pairs(all) do
 		local priv = self[1]
 		if self.tick and not priv.error then
-			for _, entity in pairs(priv.contexts) do
-				self.entity = entity
+			for _, params in pairs(priv.contexts) do
+				self.entity = params[1]
 				self.tick(self)
 			end
 		end
