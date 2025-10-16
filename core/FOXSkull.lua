@@ -37,9 +37,18 @@
 local skull = {
 	---@class FOXSkull.any
 	class = {
-		try = function(self, func, ...)
-			local success, result = pcall(func, ...)
+		---Catches an internal skull error
+		---
+		---Functions the same as a pcall 
+		---@generic self
+		---@param self self
+		---@param f function
+		---@param ... any
+		---@package
+		try = function(self, f, ...)
+			local success, result = pcall(f, ...)
 			if not success then self[1].error = result and result:gsub("\9", "  ") or true end
+			return self
 		end,
 	}
 }
