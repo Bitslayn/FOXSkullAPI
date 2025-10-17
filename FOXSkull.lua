@@ -2,6 +2,7 @@
 
 --#REGION ˚♡ Class ♡˚
 
+---Internal variables not to be accessed outside of developing FOXSkullAPI!
 ---@class FOXSkull.any.private
 ---@field model ModelPart?
 ---@field timestamp number
@@ -11,21 +12,19 @@
 ---@field contexts {[string]: any[]}
 
 ---@alias FOXSkull.block.context
----| "BLOCK"                   # Placed as a block
----| "OTHER"                   # Some other context
+---| "BLOCK"                   Placed as a block
+---| "OTHER"                   Some other context
 ---@alias FOXSkull.item.context
----| "HEAD"                    # Worn on head
----| "FIRST_PERSON_RIGHT_HAND" # Held in right hand in first person
----| "FIRST_PERSON_LEFT_HAND"  # Held in left hand in first person
----| "THIRD_PERSON_RIGHT_HAND" # Held in right hand in third person or to viewers
----| "THIRD_PERSON_LEFT_HAND"  # Held in left hand in third person or to viewers
----| "ITEM_ENTITY"             # Dropped on the ground
----| "ITEM_FRAME"              # Held in item frame
----| "GUI"	                   # Stored in container or inventory
----| "OTHER"                   # Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5 and
----@alias FOXSkull.any.context
----| FOXSkull.block.context
----| FOXSkull.item.context
+---| "HEAD"                    Worn on head
+---| "FIRST_PERSON_RIGHT_HAND" Held in right hand in first person
+---| "FIRST_PERSON_LEFT_HAND"  Held in left hand in first person
+---| "THIRD_PERSON_RIGHT_HAND" Held in right hand in third person or to viewers
+---| "THIRD_PERSON_LEFT_HAND"  Held in left hand in third person or to viewers
+---| "ITEM_ENTITY"             Dropped on the ground
+---| "ITEM_FRAME"              Held in item frame
+---| "GUI"	                   Stored in container or inventory
+---| "OTHER"                   Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5 and
+---@alias FOXSkull.any.context FOXSkull.block.context|FOXSkull.item.context
 
 ---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block)
 ---@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item)
@@ -34,17 +33,20 @@
 ---@alias FOXSkull.item.tick fun(self: FOXSkull.item)
 ---@alias FOXSkull.any.tick fun(self: FOXSkull.any)
 
+---Represents a skull placed in loaded chunks
 ---@class FOXSkull.block: FOXSkull.any
 ---@field block BlockState
 ---@field context FOXSkull.block.context
 ---@field render FOXSkull.block.render?
 ---@field tick FOXSkull.block.tick?
+---Represents a unique skull item being rendered
 ---@class FOXSkull.item: FOXSkull.any
 ---@field item ItemStack
 ---@field entity Entity
 ---@field context FOXSkull.item.context
 ---@field render FOXSkull.item.render?
 ---@field tick FOXSkull.item.tick?
+---Represents any skull, block or item, that's rendered
 ---@class FOXSkull.any
 ---@field context FOXSkull.any.context
 ---@field render FOXSkull.any.render?
@@ -52,43 +54,21 @@
 ---@field package [1] FOXSkull.any.private
 ---@field package __index FOXSkull.any
 
----@class FOXSkull
-local skull = {
-	---@class FOXSkull.any
-	class = {
-		---Catches an internal skull error
-		---
-		---Functions the same as a pcall
-		---@generic self
-		---@param self self
-		---@param f function
-		---@param ... any
-		---@return self
-		---@package
-		try = function(self, f, ...)
-			local success, result = pcall(f, ...)
-			if not success then
-				result = "§c" .. tostring(result)
-					:gsub("\9", "  ")
-					-- :gsub("[^\n]*SkullAPI.*$", "  [SkullAPI]: in ?")
 
-				self[1].error = result
-			end
-			return self
-		end,
-	},
-}
-
+---@class FOXSkull.any
+local class = {}
 ---@alias FOXSkull.key.internalID string
 ---@type table<FOXSkull.key.internalID, FOXSkull.any>
 local all = {}
+---@class FOXSkull
+local skull = { class = class, all = all }
 
 ---@alias FOXSkull.key.uuid string
 ---@type table<FOXSkull.key.uuid, FOXSkull.key.internalID>
 local uuids = {}
 
 ---@type FOXSkullAPI.Events, FOXSkullAPI.Events.call
-local _, call = require("../util/Events")
+local _, call = require("./util/Events")
 
 --#ENDREGION
 --#REGION ˚♡ Get ♡˚
@@ -132,17 +112,15 @@ function skull.get(key)
 	return all[getID(key) or key]
 end
 
-local get = skull.get
-
 --#ENDREGION
 --#REGION ˚♡ New ♡˚
 
 local metaBlock = {
-	__index = skull.class,
+	__index = class,
 	__type = "FOXSkull.block",
 }
 local metaItem = {
-	__index = skull.class,
+	__index = class,
 	__type = "FOXSkull.item",
 }
 
@@ -190,8 +168,6 @@ function skull.new(key)
 	return self
 end
 
-local new = skull.new
-
 --#ENDREGION
 --#REGION ˚♡ Remove ♡˚
 
@@ -206,112 +182,6 @@ function skull.remove(key)
 	all[getID(key) or key] = nil
 
 	if self[1].model then self[1].model:getParent():remove() end
-end
-
-local remove = skull.remove
-
---#ENDREGION
---#REGION ˚♡ Render ♡˚
-
-local vanillaSkull = models:newPart("vanillaSkull", "Skull"):visible(false)
-local skullItem = vanillaSkull:newItem("Skull")
-	:pos(0, 8, 0)
-	:item("minecraft:player_head")
-
-pcall(skullItem.item, skullItem, "minecraft:player_head" .. toJson { SkullOwner = avatar:getEntityName() })
-
-local blank = textures:newTexture("", 1, 1)
-
-local invisibleSkull = models:newPart("invisibleSkull", "Skull"):visible(false)
-invisibleSkull:newSprite("Sprite"):setTexture(blank)
-
----@type ModelPart
-local model
----@type number
-local sharedDelta
-function events.skull_render(delta, block, item, entity, context)
-	---@type FOXSkull.any
-	local self = get(block or item) or new(block or item)
-	local priv = self[1]
-
-	local time = client.getSystemTime()
-	if priv.timestamp ~= time and sharedDelta ~= delta then
-		priv.contexts = {}
-	end
-	priv.timestamp = time
-	sharedDelta = delta
-
-	self.block = block
-	self.item = item
-	self.entity = entity
-	---@diagnostic disable-next-line: assign-type-mismatch
-	self.context = context
-
-	priv.contexts[context] = { entity }
-
-	if model then model:visible(false) end
-	model = nil
-
-	if priv.error then
-		model = vanillaSkull
-	elseif priv.visible then
-		if priv.flatModel and (context == "GUI" or context == "OTHER") then
-			model = priv.flatModel
-		elseif priv.bakedModel and not priv.model then
-			local mat = priv.itemMats[context]
-			if mat then priv.bakedPivot:matrix(mat) end
-			model = priv.bakedModel
-		else
-			model = priv.model
-		end
-	else
-		model = invisibleSkull
-	end
-
-	if model then model:visible(true) end
-
-	if self.render and not priv.error then
-		self:try(self.render, delta, self)
-	end
-end
-
---#ENDREGION
---#REGION ˚♡ Tick ♡˚
-
-function events.world_tick()
-	for _, self in pairs(all) do
-		local priv = self[1]
-		if self.tick and not priv.error then
-			for _, params in pairs(priv.contexts) do
-				self.entity = params[1]
-				self:try(self.tick, self)
-			end
-		end
-	end
-end
-
---#ENDREGION
---#REGION ˚♡ Flush ♡˚
-
----@type FOXSkull.key.internalID
-local key
-function events.skull_render()
-	key = next(all, key)
-	local self = all[key]
-	if not self then return end
-
-	local block = self --[[@as FOXSkull.block]].block
-
-	local timer = block and 50 or 2000
-	if client.getSystemTime() - self[1].timestamp < timer then return end
-
-	if block then
-		local pos = block:getPos()
-		if world.isChunkLoaded(pos) and world.getBlockState(pos) == block then return end
-	end
-
-	remove(key)
-	key = nil
 end
 
 --#ENDREGION

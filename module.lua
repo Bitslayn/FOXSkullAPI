@@ -10,7 +10,7 @@ FOX's SkullAPI v1.0.0-dev
 ---@type FOXSkullAPI.Events
 local events = require("./util/Events")
 ---@type FOXSkull
-local skull = require("./core/FOXSkull")
+local skull = require("./FOXSkull")
 local get = skull.get
 
 ---@class FOXSkulls

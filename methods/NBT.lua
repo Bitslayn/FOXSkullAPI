@@ -2,7 +2,7 @@
 ---@meta FOXSkull
 
 ---@class FOXSkull.any
-local anyClass = require("../core/FOXSkull").class
+local anyClass = require("../FOXSkull").class
 ---@class FOXSkull.block: FOXSkull.any
 local blockClass = anyClass
 ---@class FOXSkull.item: FOXSkull.any

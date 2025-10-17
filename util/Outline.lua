@@ -1,3 +1,6 @@
+---@diagnostic disable: undefined-field
+---@meta FOXSkull
+
 local blank = textures:newTexture("", 1, 1)
 
 local mat = matrices.mat4()
@@ -56,7 +59,7 @@ local outlines = {
 }
 
 ---@type FOXSkull
-local skull = require("./FOXSkull")
+local skull = require("../FOXSkull")
 local get = skull.get
 
 ---@param block BlockState?
@@ -80,12 +83,15 @@ local viewer = client.getViewer()
 ---@type ModelPart
 local outline
 function events.skull_render(_, block, item, entity, context)
+	local self = get(block or item)
+	if not self then return end
+	
 	if outline then outline:visible(false) end
 	outline = nil
 
 	if context:find("FIRST_PERSON") or context == "GUI" then return end
 
-	local priv = get(block or item)[1]
+	local priv = self[1]
 	if priv.error then
 		outline = outlines.error
 

@@ -1,7 +1,7 @@
 ---@meta FOXSkull
 
 ---@class FOXSkull.any
-local anyClass = require("../../core/FOXSkull").class
+local anyClass = require("../FOXSkull").class
 
 ---Sets the model to render for this skull
 ---@generic self

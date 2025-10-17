@@ -1,8 +1,7 @@
----@diagnostic disable: undefined-field
 ---@meta FOXSkull
 
 ---@class FOXSkull.block: FOXSkull.any
-local blockClass = require("../core/FOXSkull").class
+local blockClass = require("../FOXSkull").class
 
 local dirs = {
 	east  = vec(1, 0, 0),
@@ -86,6 +85,7 @@ function blockClass:alignToFloor(distance)
 end
 
 --#ENDREGION
+--#REGION ˚♡ Redstone ♡˚
 
 ---@return integer
 ---@nodiscard
@@ -95,3 +95,5 @@ function blockClass:getRedstoneLevel()
 
 	return level
 end
+
+--#ENDREGION

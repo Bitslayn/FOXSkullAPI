@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-field
 ---@meta FOXSkull
 
 ---@alias FOXSkullAPI.Events.block fun(skull: FOXSkull.block)

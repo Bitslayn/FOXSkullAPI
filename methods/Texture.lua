@@ -1,10 +1,10 @@
 ---@meta FOXSkull
 
 ---@class FOXSkull.any
-local anyClass = require("../../core/FOXSkull").class
+local anyClass = require("../FOXSkull").class
 
 ---@type FOXSkullAPI.ItemBakery
-local bakery = require("../../util/ItemBakery")
+local bakery = require("../util/ItemBakery")
 
 local mats = bakery.matrices
 local poses = bakery.poses

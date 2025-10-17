@@ -2,7 +2,7 @@
 ---@meta FOXSkull
 
 ---@class FOXSkull.any
-local anyClass = require("../core/FOXSkull").class
+local anyClass = require("../FOXSkull").class
 
 ---Sets this skull's visibility
 ---@generic self
