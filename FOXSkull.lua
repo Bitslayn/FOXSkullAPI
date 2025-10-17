@@ -78,7 +78,7 @@ local skull = { class = class, all = all }
 local uuids = {}
 
 ---@type FOXSkullAPI.Events, FOXSkullAPI.Events.call
-local _, call = require("./util/Events")
+local _, call = require("./core/Events")
 
 --#ENDREGION
 --#REGION ˚♡ Try ♡˚

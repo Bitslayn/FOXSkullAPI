@@ -8,7 +8,7 @@ FOX's SkullAPI v1.0.0-dev
 
 ---@diagnostic disable: undefined-doc-name, undefined-field
 ---@type FOXSkullAPI.Events
-local events = require("./util/Events")
+local events = require("./core/Events")
 ---@type FOXSkull
 local skull = require("./FOXSkull")
 local get = skull.get
@@ -39,6 +39,12 @@ local skulls = setmetatable({}, {
 	__version = "1.0.0",
 	__branch = "dev"
 })
+
+-- Require all submodules recursively
+
+for _, script in pairs(listFiles("./core", true)) do
+	require(script)
+end
 
 for _, script in pairs(listFiles("./methods", true)) do
 	require(script)
