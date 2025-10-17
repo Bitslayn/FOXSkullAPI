@@ -18,7 +18,7 @@ local get = skull.get
 ---@field item_init FOXSkullAPI.Events.item
 ---@field block_deinit FOXSkullAPI.Events.block
 ---@field item_deinit FOXSkullAPI.Events.item
----@field protected [string] FOXSkull.any?
+---@field protected [FOXSkull.key.uuid] FOXSkull.any?
 ---@field protected [BlockState] FOXSkull.block?
 ---@field protected [ItemStack] FOXSkull.item?
 ---@field protected [Vector3] FOXSkull.block?

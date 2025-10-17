@@ -1,6 +1,6 @@
 ---@meta FOXSkull
 
---#REGION ˚♡ Class ♡˚
+--#REGION ˚♡ Vars ♡˚
 
 ---Internal variables not to be accessed outside of developing FOXSkullAPI!
 ---@class FOXSkull.any.private
@@ -53,16 +53,26 @@
 ---@field tick FOXSkull.any.tick?
 ---@field package [1] FOXSkull.any.private
 ---@field package __index FOXSkull.any
-
-
----@class FOXSkull.any
 local class = {}
+
+---The internal string ID which differs based on skull context
+---
+---**BlockState|Vector3 => "{\<x\>, \<y\>, \<z\>}"**
+---
+---Stringifies the block position
+---
+---**ItemStack => "minecraft:player_head{\<NBT\>}\<count\>"**
+---
+---Concatenates the stack string with the item count
 ---@alias FOXSkull.key.internalID string
+---A generic, non-strict, key used to index a skull.
+---@alias FOXSkull.key.genericKey FOXSkull.key.uuid|BlockState|ItemStack|Vector3
 ---@type table<FOXSkull.key.internalID, FOXSkull.any>
 local all = {}
 ---@class FOXSkull
 local skull = { class = class, all = all }
 
+---A string UUID
 ---@alias FOXSkull.key.uuid string
 ---@type table<FOXSkull.key.uuid, FOXSkull.key.internalID>
 local uuids = {}
@@ -71,32 +81,51 @@ local uuids = {}
 local _, call = require("./util/Events")
 
 --#ENDREGION
+--#REGION ˚♡ Try ♡˚
+	
+---Catches an internal skull error
+---
+---Functions the same as a pcall
+---@generic self
+---@param self self
+---@param f function
+---@param ... any
+---@return self
+function class:try(f, ...)
+	local success, result = pcall(f, ...)
+	if success then return self end
+
+	result = "§c" .. tostring(result)
+		:gsub("\9", "  ")
+	-- :gsub("[^\n]*SkullAPI.*$", "  [SkullAPI]: in ?")
+
+	self[1].error = result
+
+	return self
+end
+
+--#ENDREGION
 --#REGION ˚♡ Get ♡˚
 
 local idSwitch = {
-	---@param key string
+	---@param key FOXSkull.key.uuid
 	---@return FOXSkull.key.internalID
-	string = function(key)
-		return uuids[key]
-	end,
+	string = function(key) return uuids[key] end,
 	---@param key BlockState
 	---@return FOXSkull.key.internalID
-	BlockState = function(key)
-		return key:getPos():toString()
-	end,
+	BlockState = function(key) return key:getPos():toString() end,
 	---@param key ItemStack
 	---@return FOXSkull.key.internalID
-	ItemStack = function(key)
-		return key:toStackString() .. key:getCount()
-	end,
+	ItemStack = function(key) return key:toStackString() .. key:getCount() end,
 	---@param key Vector3
 	---@return FOXSkull.key.internalID
-	Vector3 = function(key)
-		return key:toString()
-	end,
+	Vector3 = function(key) return key:toString() end,
 }
 
----@param key string|BlockState|ItemStack|Vector3
+---Formats a supported key into an internalID
+---
+---Returns nil if the key is of an invalid type
+---@param key FOXSkull.key.genericKey
 ---@return FOXSkull.key.internalID?
 local function getID(key)
 	local switch = idSwitch[type(key)]
@@ -104,7 +133,10 @@ local function getID(key)
 	return switch(key)
 end
 
----@overload fun(key: string): FOXSkull.any?
+---Gets a skull that has been initialized
+---
+---Returns nil if a skull with the given key does not exist
+---@overload fun(key: FOXSkull.key.uuid): FOXSkull.any?
 ---@overload fun(key: BlockState): FOXSkull.block?
 ---@overload fun(key: ItemStack): FOXSkull.item?
 ---@overload fun(key: Vector3): FOXSkull.block?
@@ -143,6 +175,11 @@ local newSwitch = {
 	end,
 }
 
+---Creates and returns a new skull with the given BlockState or ItemStack
+---
+---Calls the init event
+---
+---Returns nil if the key is of an invalid type
 ---@overload fun(key: BlockState): FOXSkull.block
 ---@overload fun(key: ItemStack): FOXSkull.item
 function skull.new(key)
@@ -171,7 +208,10 @@ end
 --#ENDREGION
 --#REGION ˚♡ Remove ♡˚
 
----@param key string|BlockState|ItemStack|Vector3
+---Removes a skull by its generic key
+---
+---Calls the deinit event
+---@param key FOXSkull.key.genericKey
 function skull.remove(key)
 	local self = skull.get(key)
 	if not self then return end
