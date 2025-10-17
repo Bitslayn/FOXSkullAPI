@@ -82,7 +82,7 @@ local _, call = require("./util/Events")
 
 --#ENDREGION
 --#REGION ˚♡ Try ♡˚
-	
+
 ---Catches an internal skull error
 ---
 ---Functions the same as a pcall
@@ -97,7 +97,7 @@ function class:try(f, ...)
 
 	result = "§c" .. tostring(result)
 		:gsub("\9", "  ")
-	-- :gsub("[^\n]*SkullAPI.*$", "  [SkullAPI]: in ?")
+		:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?")
 
 	self[1].error = result
 

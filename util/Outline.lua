@@ -45,10 +45,12 @@ local function newOutline(color, icon)
 		:scale(1 / 16)
 		:alignment("CENTER")
 		:text(icon)
+		:light(15)
 	pvt:newText("tooltip")
 		:pos(-0.75, 0, 0)
 		:scale(1 / 32)
 		:background(true)
+		:light(15)
 
 	return outline
 end
