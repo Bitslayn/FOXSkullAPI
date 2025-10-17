@@ -10,6 +10,23 @@
 ---@field error string?
 ---@field contexts {[string]: any[]}
 
+---@alias FOXSkull.block.context
+---| "BLOCK"                   # Placed as a block
+---| "OTHER"                   # Some other context
+---@alias FOXSkull.item.context
+---| "HEAD"                    # Worn on head
+---| "FIRST_PERSON_RIGHT_HAND" # Held in right hand in first person
+---| "FIRST_PERSON_LEFT_HAND"  # Held in left hand in first person
+---| "THIRD_PERSON_RIGHT_HAND" # Held in right hand in third person or to viewers
+---| "THIRD_PERSON_LEFT_HAND"  # Held in left hand in third person or to viewers
+---| "ITEM_ENTITY"             # Dropped on the ground
+---| "ITEM_FRAME"              # Held in item frame
+---| "GUI"	                   # Stored in container or inventory
+---| "OTHER"                   # Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5 and
+---@alias FOXSkull.any.context
+---| FOXSkull.block.context
+---| FOXSkull.item.context
+
 ---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block)
 ---@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item)
 ---@alias FOXSkull.any.render fun(delta: number, self: FOXSkull.any)
@@ -19,15 +36,17 @@
 
 ---@class FOXSkull.block: FOXSkull.any
 ---@field block BlockState
+---@field context FOXSkull.block.context
 ---@field render FOXSkull.block.render?
 ---@field tick FOXSkull.block.tick?
 ---@class FOXSkull.item: FOXSkull.any
 ---@field item ItemStack
 ---@field entity Entity
+---@field context FOXSkull.item.context
 ---@field render FOXSkull.item.render?
 ---@field tick FOXSkull.item.tick?
 ---@class FOXSkull.any
----@field context Event.SkullRender.context
+---@field context FOXSkull.any.context
 ---@field render FOXSkull.any.render?
 ---@field tick FOXSkull.any.tick?
 ---@field package [1] FOXSkull.any.private
@@ -225,6 +244,7 @@ function events.skull_render(delta, block, item, entity, context)
 	self.block = block
 	self.item = item
 	self.entity = entity
+	---@diagnostic disable-next-line: assign-type-mismatch
 	self.context = context
 
 	priv.contexts[context] = { entity }
