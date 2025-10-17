@@ -95,7 +95,7 @@ function class:try(f, ...)
 	local success, result = pcall(f, ...)
 	if success then return self end
 
-	result = "§c" .. tostring(result)
+	result = "§c[error] §f" .. avatar:getEntityName() .. "§c : " .. tostring(result)
 		:gsub("\9", "  ")
 		:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?")
 
