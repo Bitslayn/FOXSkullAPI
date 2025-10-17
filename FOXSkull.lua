@@ -9,7 +9,7 @@
 ---@field visible boolean?
 ---@field uuid string
 ---@field error string?
----@field contexts {[string]: any[]}
+---@field contexts {[FOXSkull.any.context]: any[]} Used for the tick event to run it on every item context. The table stores all the variables that should be set that context, currently only having to set the entity
 
 ---@alias FOXSkull.block.context
 ---| "BLOCK"                   Placed as a block
