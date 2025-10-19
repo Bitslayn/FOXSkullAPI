@@ -146,24 +146,6 @@ function blockClass:getDir()
 	end
 end
 
----Aligns the skull model to the floor below it
----@param distance number
----@return self
-function blockClass:alignToFloor(distance)
-	if not self[1].model then return self end
-
-	distance = distance or 1.25
-
-	local startPos = self.block:getOutlineShape()[1][1] + self.block:getPos()
-	local endPos = startPos - vec(0, distance, 0)
-
-	local _, hit = raycast:block(startPos, endPos, "OUTLINE", "NONE")
-	if hit == endPos then return self end
-	self[1].model:pos(0, (startPos - hit):length() * -16)
-
-	return self
-end
-
 ---@return integer
 ---@nodiscard
 function blockClass:getRedstoneLevel()
@@ -225,6 +207,24 @@ end
 ---@nodiscard
 function anyClass:getModel()
 	return self[1].model
+end
+
+---Aligns the skull model to the floor below it
+---@param distance number
+---@return self
+function blockClass:alignToFloor(distance)
+	if not self[1].model then return self end
+
+	distance = distance or 1.25
+
+	local startPos = self.block:getOutlineShape()[1][1] + self.block:getPos()
+	local endPos = startPos - vec(0, distance, 0)
+
+	local _, hit = raycast:block(startPos, endPos, "OUTLINE", "NONE")
+	if hit == endPos then return self end
+	self[1].model:pos(0, (startPos - hit):length() * -16)
+
+	return self
 end
 
 ---------- ˚♡ Data ♡˚ ----------
