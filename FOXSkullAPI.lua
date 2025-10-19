@@ -126,7 +126,7 @@ function blockClass:getCenterPos()
 
 	local shape = block:getOutlineShape()[1]
 	local center = math.lerp(shape[1], shape[2], 0.5) + block:getPos()
-	if self[1].model then center = center + self[1].model:getPos() / 16 end
+	if self[1].model then center = center + self[1].model:getPos() * 0.0625 end
 	return center
 end
 
@@ -694,56 +694,49 @@ end
 
 ---------- ˚♡ Outline ♡˚ ----------
 
-local mat = matrices.mat4()
-mat.c4 = vec(0, 0.5, 0, 0.125)
+local line = nil
+for _, path in pairs(listFiles(nil, true)) do
+	if path:find("%.line$") then line = require(path) end
+end
+
+local outlineMat = matrices.mat4()
+outlineMat.c4 = vec(0, 0.5, 0, 0.125)
+local iconMat = matrices.mat4() * 0.0625
+iconMat.c4 = vec(0, 0, 0, 0.125)
 
 ---@param color Vector3|Vector4?
 ---@param icon string?
 ---@return ModelPart
 local function newOutline(color, icon)
-	local outline = models:newPart("skullOutline", "Skull")
+	local mdp = models:newPart("skullOutline", "Skull")
 		:visible(false)
-		:matrix(mat)
 
-	for axis = 0, 2 do
-		for rot = 0, 3 do
-			local turn = math.floor(axis / 2)
-			local lineMat = matrices.mat4()
-				-- Create tube (Translates and rotates to form sides of tube)
-				:translate(0.5, 0, -0.5)
-				:rotate(0, rot * 90)
-
-				-- Overlap tubes
-				:translate(turn * -0.5, axis * 0.5 - turn * 0.5, axis * 0.5 - turn)
-				-- Rotate horizontal tubes
-				:rotate(axis * 90, 0, turn * 90)
-				-- Uniform transform entire outline (This is done since the outline would currently be inside the floor)
-				:translate(0, 0.5)
-
-			outline:newSprite(axis .. rot)
-				:texture(blank)
-				:size(1, 1)
-				:matrix(lineMat)
-				:renderType("LINES")
-				:color(color)
-		end
-	end
-
-	local text = outline:newPart("text", "Camera")
-	local pvt = text:newPart("pvt"):matrix(mat)
+	local text = mdp
+		:newPart("text", "Camera")
+		:pivot(0, 4, 0)
+	local pvt = text
+		:newPart("pvt")
+		:matrix(iconMat)
 	pvt:newText("icon")
-		:pos(0, -0.25, 0)
-		:scale(1 / 16)
+		:pos(0, 7, 0)
 		:alignment("CENTER")
 		:text(icon)
 		:light(15)
 	pvt:newText("tooltip")
-		:pos(-0.75, 0, 0)
-		:scale(1 / 32)
+		:pos(-12, 4, 0)
+		:scale(0.5)
 		:background(true)
 		:light(15)
 
-	return outline
+	if not line then return mdp end
+
+	local outline = line.newOutline()
+	outline.model
+		:matrix(outlineMat)
+		:moveTo(mdp)
+	outline.color = color
+
+	return mdp
 end
 
 local outlines = {
@@ -761,20 +754,14 @@ local function getHovering(block, entity)
 
 	if not pos then return false end
 
-	local scr = vectors.toCameraSpace(pos)
-	return (scr.xy):length() < 0.5
+	return (vectors.toCameraSpace(pos).xy):length() < 0.5
 end
 
 local viewer = client.getViewer()
 
-local textContextBlacklist = {
-	FIRST_PERSON_LEFT_HAND = true,
-	FIRST_PERSON_RIGHT_HAND = true
-}
-
 ---@type ModelPart
 local outline
-function events.skull_render(_, block, item, entity, context)
+function events.skull_render(_, block, item, entity)
 	local self = get(block or item)
 	if not self then return end
 
@@ -786,7 +773,7 @@ function events.skull_render(_, block, item, entity, context)
 		outline = outlines.error
 
 		outline.text.pvt:getTask("tooltip") --[[@as TextTask]]
-			:visible(not textContextBlacklist[context] and getHovering(block, entity))
+			:visible(getHovering(block, entity))
 			:text(priv.error or nil)
 	elseif block and (get(viewer:getHeldItem()) or get(viewer:getHeldItem(true))) then
 		outline = getHovering(block, entity) and outlines.hover
