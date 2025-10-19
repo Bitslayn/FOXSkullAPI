@@ -31,8 +31,13 @@ local sharedDelta
 --#REGION ˚♡ Render ♡˚
 
 function events.skull_render(delta, block, item, entity, context)
+	-- Update vars
+
+	---@type BlockState|ItemStack
+	local this = block or item
+	
 	---@type FOXSkull.any
-	local self = get(block or item) or new(block or item)
+	local self = get(this) or new(this)
 	local priv = self[1]
 
 	local time = client.getSystemTime()
@@ -49,6 +54,16 @@ function events.skull_render(delta, block, item, entity, context)
 	self.context = context
 
 	priv.contexts[context] = { entity }
+
+
+	-- Skull is rendering, run its render function
+
+	if self.render and not priv.error then
+		self:try(self.render, delta, self, this)
+	end
+
+
+	-- Update the skull's model
 
 	if model then model:visible(false) end
 	model = nil
@@ -70,10 +85,6 @@ function events.skull_render(delta, block, item, entity, context)
 	end
 
 	if model then model:visible(true) end
-
-	if self.render and not priv.error then
-		self:try(self.render, delta, self)
-	end
 end
 
 --#ENDREGION
