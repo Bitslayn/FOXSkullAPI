@@ -488,6 +488,7 @@ local get = skull.get
 
 ---------- ˚♡ New ♡˚ ----------
 
+local metaAny = { __index = anyClass, __type = "FOXSkull.any" }
 local metaBlock = { __index = blockClass, __type = "FOXSkull.block" }
 local metaItem = { __index = itemClass, __type = "FOXSkull.item" }
 
@@ -517,26 +518,28 @@ local newSwitch = {
 ---Returns nil if the key is of an invalid type
 ---@overload fun(key: BlockState): FOXSkull.block
 ---@overload fun(key: ItemStack): FOXSkull.item
+---@overload fun(): FOXSkull.any
 function skull.new(key)
 	local switch = newSwitch[type(key)]
-	if not switch then return end
 
-	local self = switch(key)
+	local self = switch and switch(key) or setmetatable({}, metaAny)
 	local priv = {
 		models = {},
 		visible = true,
 		uuid = client.intUUIDToString(client.generateUUID()),
-		timestamp = client.getSystemTime(),
+		timestamp = switch and client.getSystemTime() or math.huge,
 		contexts = {},
 	}
 
 	self[1] = priv
 
-	local id = getID(key)
-	uuids[priv.uuid] = id
-	all[id] = self
+	if switch then
+		local id = getID(key)
+		uuids[priv.uuid] = id
+		all[id] = self
 
-	init(self, true)
+		init(self, true)
+	end
 
 	return self
 end
@@ -783,11 +786,27 @@ end
 ---@field item_init FOXSkullAPI.Events.item
 ---@field block_deinit FOXSkullAPI.Events.block
 ---@field item_deinit FOXSkullAPI.Events.item
+---@field newSkull fun(name: string, lore: string): FOXSkull.any
 ---@field protected [FOXSkull.key.uuid] FOXSkull.any?
 ---@field protected [BlockState] FOXSkull.block?
 ---@field protected [ItemStack] FOXSkull.item?
 ---@field protected [Vector3] FOXSkull.block?
-local skulls = setmetatable({}, {
+local skulls = setmetatable({
+	---Creates a new skull that isn't bound to an item or block
+	---@return FOXSkull.any
+	---@param name string?
+	---@param lore string?
+	---@nodiscard
+	newSkull = function(name, lore)
+		local self = skull.new()
+
+		local priv = self[1]
+		priv.name = name
+		priv.lore = lore
+
+		return self
+	end,
+}, {
 	__index = function(_, k) return get(k) end,
 	__newindex = function(_, k, v)
 		if not skullEvents[k] then
