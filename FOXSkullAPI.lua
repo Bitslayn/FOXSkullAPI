@@ -635,7 +635,7 @@ pcall(skullItem.item, skullItem, "minecraft:player_head" .. toJson { SkullOwner 
 local invisibleSkull = models:newPart("invisibleSkull", "Skull")
 	:visible(false)
 invisibleSkull:newSprite("Sprite")
-	:setTexture(nil, 1, 1)
+	:setTexture(textures:newTexture("blank", 1, 1))
 
 ---------- ˚♡ Render ♡˚ ----------
 
