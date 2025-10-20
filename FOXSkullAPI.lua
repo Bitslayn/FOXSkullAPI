@@ -38,19 +38,6 @@ local skull = {}
 ---| "OTHER"                   Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5 and
 ---@alias FOXSkull.any.context FOXSkull.block.context|FOXSkull.item.context
 
-local allContexts = {
-	BLOCK = true,
-	HEAD = true,
-	FIRST_PERSON_RIGHT_HAND = true,
-	FIRST_PERSON_LEFT_HAND = true,
-	THIRD_PERSON_RIGHT_HAND = true,
-	THIRD_PERSON_LEFT_HAND = true,
-	GROUND = true,
-	FIXED = true,
-	GUI = true,
-	OTHER = true,
-}
-
 local legacyContexts = {
 	RIGHT_HAND = "THIRD_PERSON_RIGHT_HAND",
 	LEFT_HAND = "THIRD_PERSON_LEFT_HAND",
@@ -167,6 +154,10 @@ end
 ---------- ˚♡ Model ♡˚ ----------
 
 ---Sets the model to render for this skull
+---@generic self
+---@param model any
+---@param context any
+---@return self
 ---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
 ---@overload fun(self: FOXSkull.block, model: {[FOXSkull.block.context]: ModelPart}): FOXSkull.block
@@ -183,21 +174,19 @@ function anyClass:setModel(model, context)
 			v:copy("copy"):moveTo(priv.models[k])
 		end
 	else
-		local contexts = context and { [context] = true } or allContexts
+		context = context and string.upper(context) or "OTHER"
 
-		for k in pairs(contexts) do
-			if priv.models[k] then
-				priv.models[k]:getParent():remove()
-			end
+		if priv.models[context] then
+			priv.models[context]:getParent():remove()
+		end
 
-			if model then
-				priv.models[k] = models:newPart("skullModel-" .. k)
-					:parentType("Skull")
-					:pos(-model:getPivot())
-					:visible(false)
+		if model then
+			priv.models[context] = models:newPart("skullModel-" .. context)
+				:parentType("Skull")
+				:pos(-model:getPivot())
+				:visible(false)
 
-				model:copy("copy"):moveTo(priv.models[k])
-			end
+			model:copy("copy"):moveTo(priv.models[context])
 		end
 	end
 
@@ -211,14 +200,20 @@ end
 ---@return self
 ---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
+---@overload fun(self: FOXSkull.block, model: {[FOXSkull.block.context]: ModelPart}): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: {[FOXSkull.item.context]: ModelPart}): FOXSkull.item
 function anyClass:model(model, context)
 	return self:setModel(model, context)
 end
 
 ---Gets the model set to render for this skull
+---@param context any
 ---@return ModelPart
+---@overload fun(self: FOXSkull.block, context: FOXSkull.block.context?): ModelPart
+---@overload fun(self: FOXSkull.item, context: FOXSkull.item.context?): ModelPart
 ---@nodiscard
 function anyClass:getModel(context)
+	context = context and string.upper(context) or "OTHER"
 	return self[1].models[context]
 end
 
@@ -700,8 +695,8 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if priv.error then
 		model = vanillaSkull
-	elseif priv.models[context] then
-		model = priv.visible and priv.models[context] or invisibleSkull
+	elseif priv.models[context] or priv.models.OTHER then
+		model = priv.visible and (priv.models[context] or priv.models.OTHER) or invisibleSkull
 	end
 
 	if model then model:visible(true) end
