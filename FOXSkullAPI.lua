@@ -32,8 +32,8 @@ local skull = {}
 ---| "FIRST_PERSON_LEFT_HAND"  Held in left hand in first person
 ---| "THIRD_PERSON_RIGHT_HAND" Held in right hand in third person or to viewers
 ---| "THIRD_PERSON_LEFT_HAND"  Held in left hand in third person or to viewers
----| "ITEM_ENTITY"             Dropped on the ground
----| "ITEM_FRAME"              Held in item frame
+---| "GROUND"                  Dropped on the ground
+---| "FIXED"                   Held in item frame
 ---| "GUI"	                   Stored in container or inventory
 ---| "OTHER"                   Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5 and
 ---@alias FOXSkull.any.context FOXSkull.block.context|FOXSkull.item.context
@@ -45,8 +45,8 @@ local allContexts = {
 	FIRST_PERSON_LEFT_HAND = true,
 	THIRD_PERSON_RIGHT_HAND = true,
 	THIRD_PERSON_LEFT_HAND = true,
-	ITEM_ENTITY = true,
-	ITEM_FRAME = true,
+	GROUND = true,
+	FIXED = true,
 	GUI = true,
 	OTHER = true,
 }
