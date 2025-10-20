@@ -392,7 +392,7 @@ function anyClass:getUUID()
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Error Handling ♡˚
+--#REGION ˚♡ FOXSkull > Error Catcher ♡˚
 ------------------------------------------------------------------------------------------------
 
 ---Catches an internal skull error
@@ -574,10 +574,69 @@ end
 local remove = skull.remove
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Process ♡˚
+--#REGION ˚♡ FOXSkull > Render ♡˚
 ------------------------------------------------------------------------------------------------
 
----------- ˚♡ Render ♡˚ ----------
+---------- ˚♡ Outline ♡˚ ----------
+
+local line = nil
+for _, path in pairs(listFiles(nil, true)) do
+	if path:find("%.line$") then line = require(path) end
+end
+
+---@param color Vector3|Vector4?
+---@param icon string?
+---@return ModelPart
+local function newOutline(color, icon)
+	local mdp = models:newPart("skullOutline", "Skull")
+		:visible(false)
+
+	local outlineMat = matrices.mat4()
+	outlineMat.c4 = vec(0, 0.5, 0, 0.125)
+	local iconMat = matrices.mat4() * 0.0625
+	iconMat.c4 = vec(0, 0, 0, 0.125)
+
+	local text = mdp
+		:newPart("text", "Camera")
+		:pivot(0, 4, 0)
+	local pvt = text
+		:newPart("pvt")
+		:matrix(iconMat)
+	pvt:newText("icon")
+		:pos(0, 7, 0)
+		:alignment("CENTER")
+		:text(icon)
+		:light(15)
+	pvt:newText("tooltip")
+		:pos(-12, 4, 0)
+		:scale(0.5)
+		:background(true)
+		:light(15)
+
+	if line then
+		local outline = line.newOutline()
+		outline.model
+			:matrix(outlineMat)
+			:moveTo(mdp)
+		outline.color = color
+	end
+
+	return mdp
+end
+
+local hoverOutline = newOutline(vec(1, 1, 1, 0.4), ":skull_4:")
+local errorOutline = newOutline(vec(1, 0, 0, 0.4), "§4✖")
+
+---@param block BlockState?
+---@param entity Entity?
+---@return boolean isHovering
+local function getHovering(block, entity)
+	local pos = block and block:getPos() + 0.5 or entity and entity:getPos()
+	if not pos then return false end
+	return (vectors.toCameraSpace(pos).xy):length() < 0.5
+end
+
+---------- ˚♡ Default Models ♡˚ ----------
 
 local vanillaSkull = models:newPart("vanillaSkull", "Skull"):visible(false)
 local skullItem = vanillaSkull:newItem("Skull")
@@ -587,14 +646,17 @@ local skullItem = vanillaSkull:newItem("Skull")
 pcall(skullItem.item, skullItem, "minecraft:player_head" .. toJson { SkullOwner = avatar:getEntityName() })
 
 
-local blank = textures:newTexture("", 1, 1)
+local invisibleSkull = models:newPart("invisibleSkull", "Skull")
+	:visible(false)
+invisibleSkull:newSprite("Sprite")
+	:setTexture(nil, 1, 1)
 
-local invisibleSkull = models:newPart("invisibleSkull", "Skull"):visible(false)
-invisibleSkull:newSprite("Sprite"):setTexture(blank)
+---------- ˚♡ Render ♡˚ ----------
 
+local viewer = client.getViewer()
 
----@type ModelPart
-local model
+---@type ModelPart, ModelPart
+local model, outline
 ---@type number
 local sharedDelta
 
@@ -653,6 +715,24 @@ function events.skull_render(delta, block, item, entity, context)
 	end
 
 	if model then model:visible(true) end
+
+
+	-- Update the skull's outline
+
+	if outline then outline:visible(false) end
+	outline = nil
+
+	if priv.error then
+		outline = errorOutline
+
+		outline.text.pvt:getTask("tooltip") --[[@as TextTask]]
+			:visible(getHovering(block, entity))
+			:text(priv.error or nil)
+	elseif block and (get(viewer:getHeldItem()) or get(viewer:getHeldItem(true))) then
+		outline = getHovering(block, entity) and hoverOutline
+	end
+
+	if outline then outline:visible(true) end
 end
 
 ---------- ˚♡ Tick ♡˚ ----------
@@ -672,10 +752,10 @@ end
 ---------- ˚♡ Flush ♡˚ ----------
 
 ---@type FOXSkull.key.internalID
-local key
+local flushKey
 function events.skull_render()
-	key = next(all, key)
-	local self = all[key]
+	flushKey = next(all, flushKey)
+	local self = all[flushKey]
 	if not self then return end
 
 	local block = self --[[@as FOXSkull.block]].block
@@ -688,99 +768,8 @@ function events.skull_render()
 		if world.isChunkLoaded(pos) and world.getBlockState(pos) == block then return end
 	end
 
-	remove(key)
-	key = nil
-end
-
----------- ˚♡ Outline ♡˚ ----------
-
-local line = nil
-for _, path in pairs(listFiles(nil, true)) do
-	if path:find("%.line$") then line = require(path) end
-end
-
-local outlineMat = matrices.mat4()
-outlineMat.c4 = vec(0, 0.5, 0, 0.125)
-local iconMat = matrices.mat4() * 0.0625
-iconMat.c4 = vec(0, 0, 0, 0.125)
-
----@param color Vector3|Vector4?
----@param icon string?
----@return ModelPart
-local function newOutline(color, icon)
-	local mdp = models:newPart("skullOutline", "Skull")
-		:visible(false)
-
-	local text = mdp
-		:newPart("text", "Camera")
-		:pivot(0, 4, 0)
-	local pvt = text
-		:newPart("pvt")
-		:matrix(iconMat)
-	pvt:newText("icon")
-		:pos(0, 7, 0)
-		:alignment("CENTER")
-		:text(icon)
-		:light(15)
-	pvt:newText("tooltip")
-		:pos(-12, 4, 0)
-		:scale(0.5)
-		:background(true)
-		:light(15)
-
-	if not line then return mdp end
-
-	local outline = line.newOutline()
-	outline.model
-		:matrix(outlineMat)
-		:moveTo(mdp)
-	outline.color = color
-
-	return mdp
-end
-
-local outlines = {
-	hover = newOutline(vec(1, 1, 1, 0.4), ":skull_4:"),
-	error = newOutline(vec(1, 0, 0, 0.4), "§4✖"),
-}
-
----@param block BlockState?
----@param entity Entity?
----@return boolean isHovering
-local function getHovering(block, entity)
-	local pos =
-		block and block:getPos() + 0.5 or
-		entity and entity:getPos()
-
-	if not pos then return false end
-
-	return (vectors.toCameraSpace(pos).xy):length() < 0.5
-end
-
-local viewer = client.getViewer()
-
----@type ModelPart
-local outline
-function events.skull_render(_, block, item, entity)
-	local self = get(block or item)
-	if not self then return end
-
-	if outline then outline:visible(false) end
-	outline = nil
-
-	local priv = self[1]
-	if priv.error then
-		outline = outlines.error
-
-		outline.text.pvt:getTask("tooltip") --[[@as TextTask]]
-			:visible(getHovering(block, entity))
-			:text(priv.error or nil)
-	elseif block and (get(viewer:getHeldItem()) or get(viewer:getHeldItem(true))) then
-		outline = getHovering(block, entity) and outlines.hover
-	end
-
-	if not outline then return end
-	outline:visible(true)
+	remove(flushKey)
+	flushKey = nil
 end
 
 --#ENDREGION
