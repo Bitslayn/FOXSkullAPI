@@ -51,6 +51,11 @@ local allContexts = {
 	OTHER = true,
 }
 
+local legacyContexts = {
+	RIGHT_HAND = "THIRD_PERSON_RIGHT_HAND",
+	LEFT_HAND = "THIRD_PERSON_LEFT_HAND",
+}
+
 ---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block, block: BlockState)
 ---@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item, item: ItemStack)
 ---@alias FOXSkull.any.render fun(delta: number, self: FOXSkull.any)
@@ -648,6 +653,8 @@ local sharedDelta
 
 function events.skull_render(delta, block, item, entity, context)
 	-- Update vars
+
+	context = legacyContexts[context] or context
 
 	---@type BlockState|ItemStack
 	local this = block or item
