@@ -15,7 +15,7 @@ local skull = {}
 
 ---Internal variables not to be accessed outside of developing FOXSkullAPI!
 ---@class FOXSkull.any.private
----@field model ModelPart?
+---@field models {[FOXSkull.any.context]: ModelPart}
 ---@field timestamp number
 ---@field visible boolean?
 ---@field uuid string
@@ -37,6 +37,19 @@ local skull = {}
 ---| "GUI"	                   Stored in container or inventory
 ---| "OTHER"                   Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5 and
 ---@alias FOXSkull.any.context FOXSkull.block.context|FOXSkull.item.context
+
+local allContexts = {
+	BLOCK = true,
+	HEAD = true,
+	FIRST_PERSON_RIGHT_HAND = true,
+	FIRST_PERSON_LEFT_HAND = true,
+	THIRD_PERSON_RIGHT_HAND = true,
+	THIRD_PERSON_LEFT_HAND = true,
+	ITEM_ENTITY = true,
+	ITEM_FRAME = true,
+	GUI = true,
+	OTHER = true,
+}
 
 ---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block)
 ---@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item)
@@ -127,7 +140,6 @@ function blockClass:getCenterPos()
 
 	local shape = block:getOutlineShape()[1]
 	local center = math.lerp(shape[1], shape[2], 0.5) + block:getPos()
-	if self[1].model then center = center + self[1].model:getPos() * 0.0625 end
 	return center
 end
 
@@ -160,72 +172,51 @@ end
 
 ---Sets the model to render for this skull
 ---@generic self
----@param self self
----@param model ModelPart?
+---@param model ModelPart
+---@param context FOXSkull.any.context
 ---@return self
-function anyClass:setModel(model)
+---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
+function anyClass:setModel(model, context)
 	local priv = self[1]
 
-	if not model then
-		if not priv.model then return self end
-		priv.model:getParent():remove()
-		return self
+	local contexts = context and { [context] = true } or allContexts
+
+	for k in pairs(contexts) do
+		if priv.models[k] then
+			priv.models[k]:getParent():remove()
+		end
+
+		if model then
+			priv.models[k] = models:newPart("skullModel-" .. k)
+				:parentType("Skull")
+				:pos(-model:getPivot())
+				:visible(false)
+
+			model:copy("")
+				:moveTo(priv.models[k])
+		end
 	end
 
-	local pivot
-	if priv.model then
-		pivot = priv.model
-			:getParent()
-			:pos(-model:getPivot())
-
-		priv.model:remove()
-	else
-		pivot = models
-			:newPart("skullPivot")
-			:parentType("Skull")
-			:pos(-model:getPivot())
-	end
-
-	priv.model = model
-		:copy("skullModel")
-		:moveTo(pivot)
-		:visible(false)
-
-	return self
+	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
 ---Sets the model to render for this skull
 ---@generic self
----@param self self
----@param model ModelPart?
+---@param model any
+---@param context any
 ---@return self
-function anyClass:model(model)
-	return self --[[@as FOXSkull.any]]:setModel(model)
+---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
+function anyClass:model(model, context)
+	return self:setModel(model, context)
 end
 
 ---Gets the model set to render for this skull
 ---@return ModelPart
 ---@nodiscard
-function anyClass:getModel()
-	return self[1].model
-end
-
----Aligns the skull model to the floor below it
----@param distance number
----@return self
-function blockClass:alignToFloor(distance)
-	if not self[1].model then return self end
-
-	distance = distance or 1.25
-
-	local startPos = self.block:getOutlineShape()[1][1] + self.block:getPos()
-	local endPos = startPos - vec(0, distance, 0)
-
-	local _, hit = raycast:block(startPos, endPos, "OUTLINE", "NONE")
-	if hit == endPos then return self end
-	self[1].model:pos(0, (startPos - hit):length() * -16)
-
-	return self
+function anyClass:getModel(context)
+	return self[1].models[context]
 end
 
 ---------- ˚♡ Data ♡˚ ----------
@@ -368,19 +359,17 @@ end
 ---Sets the function to run when this skull renders
 ---@overload fun(self: FOXSkull.block, func: FOXSkull.block.render): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, func: FOXSkull.item.render): FOXSkull.item
----@overload fun(self: FOXSkull.any, func: FOXSkull.any.render): FOXSkull.any
 function anyClass:setRender(func)
 	self.render = func
-	return self
+	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
 ---Sets the function to run when this skull ticks
 ---@overload fun(self: FOXSkull.block, func: FOXSkull.block.tick): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, func: FOXSkull.item.tick): FOXSkull.item
----@overload fun(self: FOXSkull.any, func: FOXSkull.any.render): FOXSkull.any
 function anyClass:setTick(func)
 	self.tick = func
-	return self
+	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
 ---------- ˚♡ UUID ♡˚ ----------
@@ -526,6 +515,7 @@ function skull.new(key)
 
 	local self = switch(key)
 	local priv = {
+		models = {},
 		visible = true,
 		uuid = client.intUUIDToString(client.generateUUID()),
 		timestamp = client.getSystemTime(),
@@ -561,7 +551,9 @@ function skull.remove(key)
 	uuids[priv.uuid] = nil
 	all[getID(key) or key] = nil
 
-	if priv.model then priv.model:getParent():remove() end
+	for _, model in pairs(priv.models) do
+		model:getParent():remove()
+	end
 end
 
 local remove = skull.remove
@@ -584,12 +576,12 @@ local function newOutline(color, icon)
 	local mdp = models:newPart("skullOutline", "Skull")
 		:visible(false)
 
-	local outlineMat = matrices.mat4()
-	outlineMat.c4 = vec(0, 0.5, 0, 0.125)
-	local iconMat = matrices.mat4() * 0.0625
-	iconMat.c4 = vec(0, 0, 0, 0.125)
+	local outlineMat = matrices.mat4() * 0.5
+	outlineMat.c4 = vec(0, 0.25, 0, 0.0625)
+	local iconMat = matrices.mat4() * 0.03125
+	iconMat.c4 = vec(0, 0, 0, 0.0625)
 	local tooltipMat = matrices.mat4() * (0.0625 / 4)
-	tooltipMat.c4 = vec(0, 0, 0, 0.125 / 2)
+	tooltipMat.c4 = vec(0, 0, 0, 0.0625)
 
 	local bb = mdp
 		:newPart("bb", "Camera")
@@ -681,24 +673,26 @@ function events.skull_render(delta, block, item, entity, context)
 	end
 
 
-	-- Update the skull's model
+	-- Render this skull's model
 
 	if model then model:visible(false) end
 	model = nil
 
 	if priv.error then
 		model = vanillaSkull
-	else
-		model = priv.visible and priv.model or invisibleSkull
+	elseif priv.models[context] then
+		model = priv.visible and priv.models[context] or invisibleSkull
 	end
 
 	if model then model:visible(true) end
 
 
-	-- Update the skull's outline
+	-- Render this skull's outline
 
 	if outline then outline:visible(false) end
 	outline = nil
+
+	if not model then return end
 
 	if priv.error then
 		outline = errorOutline
