@@ -167,30 +167,37 @@ end
 ---------- ˚♡ Model ♡˚ ----------
 
 ---Sets the model to render for this skull
----@generic self
----@param model ModelPart
----@param context FOXSkull.any.context
----@return self
 ---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
+---@overload fun(self: FOXSkull.block, model: {[FOXSkull.block.context]: ModelPart}): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: {[FOXSkull.item.context]: ModelPart}): FOXSkull.item
 function anyClass:setModel(model, context)
 	local priv = self[1]
 
-	local contexts = context and { [context] = true } or allContexts
-
-	for k in pairs(contexts) do
-		if priv.models[k] then
-			priv.models[k]:getParent():remove()
-		end
-
-		if model then
+	if type(model) == "table" then
+		for k, v in pairs(model) do
 			priv.models[k] = models:newPart("skullModel-" .. k)
 				:parentType("Skull")
-				:pos(-model:getPivot())
 				:visible(false)
 
-			model:copy("")
-				:moveTo(priv.models[k])
+			v:copy("copy"):moveTo(priv.models[k])
+		end
+	else
+		local contexts = context and { [context] = true } or allContexts
+
+		for k in pairs(contexts) do
+			if priv.models[k] then
+				priv.models[k]:getParent():remove()
+			end
+
+			if model then
+				priv.models[k] = models:newPart("skullModel-" .. k)
+					:parentType("Skull")
+					:pos(-model:getPivot())
+					:visible(false)
+
+				model:copy("copy"):moveTo(priv.models[k])
+			end
 		end
 	end
 
