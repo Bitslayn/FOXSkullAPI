@@ -51,11 +51,11 @@ local allContexts = {
 	OTHER = true,
 }
 
----@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block)
----@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item)
+---@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block, block: BlockState)
+---@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item, item: ItemStack)
 ---@alias FOXSkull.any.render fun(delta: number, self: FOXSkull.any)
----@alias FOXSkull.block.tick fun(self: FOXSkull.block)
----@alias FOXSkull.item.tick fun(self: FOXSkull.item)
+---@alias FOXSkull.block.tick fun(self: FOXSkull.block, block: BlockState)
+---@alias FOXSkull.item.tick fun(self: FOXSkull.item, item: ItemStack)
 ---@alias FOXSkull.any.tick fun(self: FOXSkull.any)
 
 ---Represents any skull, block or item, that's rendered
@@ -408,8 +408,8 @@ end
 --#REGION ˚♡ FOXSkull > Events ♡˚
 ------------------------------------------------------------------------------------------------
 
----@alias FOXSkullAPI.Events.block fun(skull: FOXSkull.block)
----@alias FOXSkullAPI.Events.item fun(skull: FOXSkull.item)
+---@alias FOXSkullAPI.Events.block fun(skull: FOXSkull.block, block: BlockState)
+---@alias FOXSkullAPI.Events.item fun(skull: FOXSkull.item, item: ItemStack)
 ---@class FOXSkullAPI.Events
 local skullEvents = {
 	---@type FOXSkullAPI.Events.block[]
@@ -429,8 +429,9 @@ local function init(self, state)
 	local k = t:sub(10, #t) .. (state and "_init" or "_deinit")
 
 	try(self, function()
+		local this = self --[[@as FOXSkull.block]].block or self --[[@as FOXSkull.item]].item
 		---@diagnostic disable-next-line: param-type-mismatch
-		for _, func in pairs(skullEvents[k]) do func(self) end
+		for _, func in pairs(skullEvents[k]) do func(self, this) end
 	end)
 end
 
@@ -732,7 +733,8 @@ function events.world_tick()
 		if self.tick and not priv.error then
 			for _, params in pairs(priv.contexts) do
 				self.entity = params[1]
-				try(self, self.tick, self)
+				local this = self --[[@as FOXSkull.block]].block or self --[[@as FOXSkull.item]].item
+				try(self, self.tick, self, this)
 			end
 		end
 	end
