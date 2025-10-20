@@ -159,15 +159,6 @@ function blockClass:getDir()
 	end
 end
 
----@return integer
----@nodiscard
-function blockClass:getRedstoneLevel()
-	local pos = self.block:getPos()
-	local level = world.getRedstonePower(pos)
-
-	return level
-end
-
 ---------- ˚♡ Model ♡˚ ----------
 
 ---Sets the model to render for this skull
@@ -221,8 +212,6 @@ end
 
 ---------- ˚♡ Data ♡˚ ----------
 
-local defaultName = avatar:getEntityName() .. "'s Head"
-
 ---@param json string
 ---@return string
 local function parseName(json)
@@ -241,8 +230,8 @@ function anyClass:getName()
 	else
 		local block = self --[[@as FOXSkull.block]].block
 		local data = block:getEntityData()
-		if not data then return defaultName end
-		return data.custom_name and parseName(data.custom_name) or defaultName -- Block for 1.21+
+		if not data then return "Player Head" end
+		return data.custom_name and parseName(data.custom_name) or "Player Head" -- Block for 1.21+
 	end
 end
 
@@ -300,21 +289,34 @@ local function parseBase64(str)
 end
 
 ---@param textures table
+---@param i integer
+---@param j integer
 ---@return string
-local function parseTextures(textures)
-	local data = {}
-	for i, texture in ipairs(textures) do
-		data[i] = parseBase64(texture.value or texture.Value)
+local function parseTextures(textures, i, j)
+	local data = ""
+	for k = math.max(i, 1), math.min(j, #textures) do
+		local texture = textures[k]
+		data = data .. parseBase64(texture.value or texture.Value)
 	end
-	return table.concat(data, "")
+	return data
 end
 
 ---Gets this skull's parsed texture data
+---
+---If a single integer is given, returns the texture field for that index
+---
+---If two integers are given, treats them as a range, returning those texture fields concatenated
+---
+---Concatenates all texture fields if no integers are given
 ---@generic self
 ---@param self self
+---@param i integer?
+---@param j integer?
 ---@return string
 ---@nodiscard
-function anyClass:getData()
+function anyClass:getData(i, j)
+	i, j = i or 1, j or i or math.huge
+
 	local block = self --[[@as FOXSkull.block]].block
 	local item = self --[[@as FOXSkull.item]].item
 	local nbt = block and block:getEntityData() or item and item.tag
@@ -323,7 +325,7 @@ function anyClass:getData()
 	local textures = nbt.SkullOwner and nbt.SkullOwner.Properties and nbt.SkullOwner.Properties.textures or -- < 1.21.9
 		nbt.profile and nbt.profile.properties                                                           -- 1.21.9+
 
-	return textures and parseTextures(textures) or ""
+	return textures and parseTextures(textures, i, j) or ""
 end
 
 ---------- ˚♡ Visibility ♡˚ ----------
