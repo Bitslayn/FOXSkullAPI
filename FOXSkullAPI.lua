@@ -406,7 +406,7 @@ local function try(self, f, ...)
 	local success, result = pcall(f, ...)
 	if success then return end
 
-	result = "§c[error] §f" .. avatar:getEntityName() .. "§c : " .. tostring(result)
+	result = "§c[error] §f${name}§c : " .. tostring(result)
 		:gsub("\9", "  ")
 		:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?")
 
