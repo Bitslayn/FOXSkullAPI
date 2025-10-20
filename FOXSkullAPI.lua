@@ -20,6 +20,7 @@ local skull = {}
 ---@field visible boolean?
 ---@field uuid string
 ---@field error string?
+---@field errorOffset number?
 ---@field contexts {[FOXSkull.any.context]: any[]} Used for the tick event to run it on every item context. The table stores all the variables that should be set that context, currently only having to set the entity
 
 ---@alias FOXSkull.block.context
@@ -392,28 +393,26 @@ function anyClass:getUUID()
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Error Catcher ♡˚
+--#REGION ˚♡ FOXSkull > Try ♡˚
 ------------------------------------------------------------------------------------------------
 
 ---Catches an internal skull error
 ---
 ---Functions the same as a pcall
----@generic self
----@param self self
+---@param self FOXSkull.any
 ---@param f function
 ---@param ... any
----@return self
 local function try(self, f, ...)
 	local success, result = pcall(f, ...)
-	if success then return self end
+	if success then return end
 
 	result = "§c[error] §f" .. avatar:getEntityName() .. "§c : " .. tostring(result)
 		:gsub("\9", "  ")
 		:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?")
 
-	self[1].error = result
-
-	return self
+	local priv = self[1]
+	priv.error = result
+	priv.errorOffset = client.getTextWidth(result) * 0.125
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -474,8 +473,7 @@ local idSwitch = {
 ---@return FOXSkull.key.internalID?
 local function getID(key)
 	local switch = idSwitch[type(key)]
-	if not switch then return end
-	return switch(key)
+	if switch then return switch(key) end
 end
 
 ---Gets a skull that has been initialized
@@ -493,21 +491,15 @@ local get = skull.get
 
 ---------- ˚♡ New ♡˚ ----------
 
-local metaBlock = {
-	__index = anyClass,
-	__type = "FOXSkull.block",
-}
-local metaItem = {
-	__index = anyClass,
-	__type = "FOXSkull.item",
-}
+local metaBlock = { __index = blockClass, __type = "FOXSkull.block" }
+local metaItem = { __index = itemClass, __type = "FOXSkull.item" }
 
 local newSwitch = {
 	---@param key BlockState
 	---@return FOXSkull.block
 	BlockState = function(key)
 		local block = key
-		local self = setmetatable({}, metaBlock) --[[@as FOXSkull.block]]
+		local self = setmetatable({}, metaBlock)
 		self.block = block
 		return self
 	end,
@@ -515,7 +507,7 @@ local newSwitch = {
 	---@return FOXSkull.item
 	ItemStack = function(key)
 		local item = key
-		local self = setmetatable({}, metaItem) --[[@as FOXSkull.item]]
+		local self = setmetatable({}, metaItem)
 		self.item = item:copy()
 		return self
 	end,
@@ -560,15 +552,16 @@ local new = skull.new
 ---Calls the deinit event
 ---@param key FOXSkull.key.genericKey
 function skull.remove(key)
-	local self = skull.get(key)
+	local self = get(key)
 	if not self then return end
 
 	init(self, false)
 
-	uuids[self[1].uuid] = nil
+	local priv = self[1]
+	uuids[priv.uuid] = nil
 	all[getID(key) or key] = nil
 
-	if self[1].model then self[1].model:getParent():remove() end
+	if priv.model then priv.model:getParent():remove() end
 end
 
 local remove = skull.remove
@@ -595,11 +588,13 @@ local function newOutline(color, icon)
 	outlineMat.c4 = vec(0, 0.5, 0, 0.125)
 	local iconMat = matrices.mat4() * 0.0625
 	iconMat.c4 = vec(0, 0, 0, 0.125)
+	local tooltipMat = matrices.mat4() * (0.0625 / 4)
+	tooltipMat.c4 = vec(0, 0, 0, 0.125 / 2)
 
-	local text = mdp
-		:newPart("text", "Camera")
+	local bb = mdp
+		:newPart("bb", "Camera")
 		:pivot(0, 4, 0)
-	local pvt = text
+	local pvt = bb
 		:newPart("pvt")
 		:matrix(iconMat)
 	pvt:newText("icon")
@@ -607,11 +602,16 @@ local function newOutline(color, icon)
 		:alignment("CENTER")
 		:text(icon)
 		:light(15)
-	pvt:newText("tooltip")
-		:pos(-12, 4, 0)
-		:scale(0.5)
-		:background(true)
+	local tpvt = bb
+		:newPart("tpvt")
+	tpvt:newText("fg")
+		:matrix(tooltipMat)
 		:light(15)
+	tpvt:newText("bg")
+		:matrix(tooltipMat)
+		:light(15)
+		:background(true)
+		:seeThrough(true)
 
 	if line then
 		local outline = line.newOutline()
@@ -626,15 +626,6 @@ end
 
 local hoverOutline = newOutline(vec(1, 1, 1, 0.4), ":skull_4:")
 local errorOutline = newOutline(vec(1, 0, 0, 0.4), "§4✖")
-
----@param block BlockState?
----@param entity Entity?
----@return boolean isHovering
-local function getHovering(block, entity)
-	local pos = block and block:getPos() + 0.5 or entity and entity:getPos()
-	if not pos then return false end
-	return (vectors.toCameraSpace(pos).xy):length() < 0.5
-end
 
 ---------- ˚♡ Default Models ♡˚ ----------
 
@@ -677,11 +668,8 @@ function events.skull_render(delta, block, item, entity, context)
 	priv.timestamp = time
 	sharedDelta = delta
 
-	self.block = block
-	self.item = item
 	self.entity = entity
-	---@diagnostic disable-next-line: assign-type-mismatch
-	self.context = context
+	self.context = context --[[@as FOXSkull.any.context]]
 
 	priv.contexts[context] = { entity }
 
@@ -700,18 +688,8 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if priv.error then
 		model = vanillaSkull
-	elseif priv.visible then
-		if priv.flatModel and (context == "GUI" or context == "OTHER") then
-			model = priv.flatModel
-		elseif priv.bakedModel and not priv.model then
-			local mat = priv.itemMats[context]
-			if mat then priv.bakedPivot:matrix(mat) end
-			model = priv.bakedModel
-		else
-			model = priv.model
-		end
 	else
-		model = invisibleSkull
+		model = priv.visible and priv.model or invisibleSkull
 	end
 
 	if model then model:visible(true) end
@@ -725,11 +703,28 @@ function events.skull_render(delta, block, item, entity, context)
 	if priv.error then
 		outline = errorOutline
 
-		outline.text.pvt:getTask("tooltip") --[[@as TextTask]]
-			:visible(getHovering(block, entity))
-			:text(priv.error or nil)
-	elseif block and (get(viewer:getHeldItem()) or get(viewer:getHeldItem(true))) then
-		outline = getHovering(block, entity) and hoverOutline
+		local isSelected =
+			block and viewer:getTargetedBlock():getPos() == block:getPos() or
+			entity and viewer:getTargetedEntity() == entity
+		local tpvt = outline.bb.tpvt:visible(isSelected)
+
+		if isSelected then
+			tpvt:pos(priv.errorOffset, -8, 0)
+			tpvt:getTask("fg") --[[@as TextTask]]
+				:text(priv.error)
+			tpvt:getTask("bg") --[[@as TextTask]]
+				:text(priv.error)
+		end
+	elseif block then
+		local main = viewer:getHeldItem()
+		local off = viewer:getHeldItem(true)
+		if main.id == "minecraft:player_head" and get(main) or
+			off.id == "minecraft:player_head" and get(off) then
+			local scr = vectors.toCameraSpace(block:getPos() + 0.5)
+
+			local isHovering = scr.xy:length() ^ 2 < scr.z * 1.5 ^ 2
+			outline = isHovering and hoverOutline
+		end
 	end
 
 	if outline then outline:visible(true) end
