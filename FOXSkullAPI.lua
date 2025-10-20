@@ -391,8 +391,22 @@ function anyClass:getUUID()
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Try ♡˚
+--#REGION ˚♡ FOXSkull > Events ♡˚
 ------------------------------------------------------------------------------------------------
+
+---@alias FOXSkullAPI.Events.block fun(skull: FOXSkull.block, block: BlockState)
+---@alias FOXSkullAPI.Events.item fun(skull: FOXSkull.item, item: ItemStack)
+---@class FOXSkullAPI.Events
+local skullEvents = {
+	---@type FOXSkullAPI.Events.block[]
+	block_init = {},
+	---@type FOXSkullAPI.Events.item[]
+	item_init = {},
+	---@type FOXSkullAPI.Events.block[]
+	block_deinit = {},
+	---@type FOXSkullAPI.Events.item[]
+	item_deinit = {},
+}
 
 ---Catches an internal skull error
 ---
@@ -412,24 +426,6 @@ local function try(self, f, ...)
 	priv.error = result
 	priv.errorOffset = client.getTextWidth(result) * 0.125
 end
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Events ♡˚
-------------------------------------------------------------------------------------------------
-
----@alias FOXSkullAPI.Events.block fun(skull: FOXSkull.block, block: BlockState)
----@alias FOXSkullAPI.Events.item fun(skull: FOXSkull.item, item: ItemStack)
----@class FOXSkullAPI.Events
-local skullEvents = {
-	---@type FOXSkullAPI.Events.block[]
-	block_init = {},
-	---@type FOXSkullAPI.Events.item[]
-	item_init = {},
-	---@type FOXSkullAPI.Events.block[]
-	block_deinit = {},
-	---@type FOXSkullAPI.Events.item[]
-	item_deinit = {},
-}
 
 ---@param self FOXSkull.any
 ---@param state boolean
