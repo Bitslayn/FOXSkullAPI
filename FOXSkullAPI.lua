@@ -784,27 +784,29 @@ end
 ---@field item_init FOXSkullAPI.Events.item
 ---@field block_deinit FOXSkullAPI.Events.block
 ---@field item_deinit FOXSkullAPI.Events.item
----@field newSkull fun(name: string, lore: string): FOXSkull.any
+---@field newSkull fun(name: string?, lore: string?): FOXSkull.any
 ---@field protected [FOXSkull.key.uuid] FOXSkull.any?
 ---@field protected [BlockState] FOXSkull.block?
 ---@field protected [ItemStack] FOXSkull.item?
 ---@field protected [Vector3] FOXSkull.block?
-local skulls = setmetatable({
-	---Creates a new skull that isn't bound to an item or block
-	---@return FOXSkull.any
-	---@param name string?
-	---@param lore string?
-	---@nodiscard
-	newSkull = function(name, lore)
-		local self = skull.new()
+local skulls = {}
 
-		local priv = self[1]
-		priv.name = name
-		priv.lore = lore
+---Creates a new skull that isn't bound to an item or block
+---@return FOXSkull.any
+---@param name string?
+---@param lore string?
+---@nodiscard
+function skulls.newSkull(name, lore)
+	local self = skull.new()
 
-		return self
-	end,
-}, {
+	local priv = self[1]
+	priv.name = name
+	priv.lore = lore
+
+	return self
+end
+
+return setmetatable(skulls, {
 	__index = function(_, k) return get(k) end,
 	__newindex = function(_, k, v)
 		if not skullEvents[k] then
@@ -819,7 +821,5 @@ local skulls = setmetatable({
 	__version = "1.0.0",
 	__branch = "dev-flat",
 })
-
-return skulls
 
 --#ENDREGION
