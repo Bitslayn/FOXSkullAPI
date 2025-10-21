@@ -4,6 +4,14 @@ ____  ___ __   __
 | _|| (_) |> w <
 |_|  \___//_/ \_\
 FOX's SkullAPI v1.0.0-dev
+
+Github: https://github.com/Bitslayn/FOXSkullAPI
+Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
+
+Works best when used with these scripts:
+
+FOX's Line Utility - https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/line.lua
+FOX's Item Bakery - [TODO]
 ]]
 
 --==============================================================================================================================
@@ -35,7 +43,7 @@ local skull = {}
 ---| "GROUND"                  Dropped on the ground
 ---| "FIXED"                   Held in item frame
 ---| "GUI"	                   Stored in container or inventory
----| "OTHER"                   Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5 and
+---| "OTHER"                   Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5
 ---@alias FOXSkull.any.context FOXSkull.block.context|FOXSkull.item.context
 
 local legacyContexts = {
