@@ -179,7 +179,7 @@ function anyClass:setModel(model, context)
 				:parentType("Skull")
 				:visible(false)
 
-			v:copy("copy"):moveTo(priv.models[k])
+			v:moveTo(priv.models[k])
 		end
 	else
 		context = context and string.upper(context) or "OTHER"
@@ -735,7 +735,7 @@ function events.skull_render(delta, block, item, entity, context)
 			off.id == "minecraft:player_head" and get(off) then
 			local scr = vectors.toCameraSpace(block:getPos() + 0.5)
 
-			local isHovering = scr.xy:length() ^ 2 < scr.z * 1.5 ^ 2
+			local isHovering = scr.xy:length() ^ 2 < math.abs(scr.z) * 1.5 ^ 2
 			outline = isHovering and hoverOutline
 		end
 	end
