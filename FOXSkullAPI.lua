@@ -426,7 +426,7 @@ local function try(self, f, ...)
 	local success, result = pcall(f, ...)
 	if success then return end
 
-	result = "§c[error] §f${name}§c : " .. tostring(result)
+	result = "§c[error] §f" .. avatar:getEntityName() .. "§c : " .. tostring(result)
 		:gsub("\9", "  ")
 		:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?")
 
@@ -463,7 +463,7 @@ local idSwitch = {
 	BlockState = function(key) return key:getPos():toString() end,
 	---@param key ItemStack
 	---@return FOXSkull.key.internalID
-	ItemStack = function(key) return key:toStackString() .. key:getCount() end,
+	ItemStack = function(key) return key:getCount() .. key:toStackString() end,
 	---@param key Vector3
 	---@return FOXSkull.key.internalID
 	Vector3 = function(key) return key:toString() end,
