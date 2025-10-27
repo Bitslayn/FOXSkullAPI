@@ -755,6 +755,7 @@ end
 
 ---------- ˚♡ Get ♡˚ ----------
 
+---@type fun(key: FOXSkull.key.genericKey, entity: Entity?): FOXSkull.key.internalID
 local idSwitch = {
 	---@param key FOXSkull.key.uuid
 	---@return FOXSkull.key.internalID
@@ -763,8 +764,9 @@ local idSwitch = {
 	---@return FOXSkull.key.internalID
 	BlockState = function(key) return key:getPos():toString() end,
 	---@param key ItemStack
+	---@param entity Entity
 	---@return FOXSkull.key.internalID
-	ItemStack = function(key) return key:getCount() .. key:toStackString() end,
+	ItemStack = function(key, entity) return key:getCount() .. (entity and entity:getUUID() or "") .. key:toStackString() end,
 	---@param key Vector3
 	---@return FOXSkull.key.internalID
 	Vector3 = function(key) return key:toString() end,
@@ -774,21 +776,23 @@ local idSwitch = {
 ---
 ---Returns nil if the key is of an invalid type
 ---@param key FOXSkull.key.genericKey
+---@param entity Entity
 ---@return FOXSkull.key.internalID?
-local function getID(key)
+local function getID(key, entity)
 	local switch = idSwitch[type(key)]
-	if switch then return switch(key) end
+	---@diagnostic disable-next-line: param-type-mismatch
+	if switch then return switch(key, entity) end
 end
 
 ---Gets a skull that has been initialized
 ---
 ---Returns nil if a skull with the given key does not exist
----@overload fun(key: FOXSkull.key.uuid): FOXSkull.any?
----@overload fun(key: BlockState): FOXSkull.block?
----@overload fun(key: ItemStack): FOXSkull.item?
----@overload fun(key: Vector3): FOXSkull.block?
-local function get(key)
-	return all[getID(key) or key]
+---@overload fun(key: FOXSkull.key.uuid, entity: Entity?): FOXSkull.any?
+---@overload fun(key: BlockState, entity: Entity?): FOXSkull.block?
+---@overload fun(key: ItemStack, entity: Entity?): FOXSkull.item?
+---@overload fun(key: Vector3, entity: Entity?): FOXSkull.block?
+local function get(key, entity)
+	return all[getID(key, entity) or key]
 end
 
 ---------- ˚♡ New ♡˚ ----------
@@ -836,13 +840,16 @@ local newSwitch = {
 ---Calls the init event
 ---
 ---Returns nil if the key is of an invalid type
----@overload fun(key: BlockState): FOXSkull.block
----@overload fun(key: ItemStack): FOXSkull.item
+---@overload fun(key: BlockState, entity: Entity): FOXSkull.block
+---@overload fun(key: ItemStack, entity: Entity): FOXSkull.item
 ---@overload fun(): FOXSkull.any
-local function new(key)
+local function new(key, entity)
 	local switch = newSwitch[type(key)]
 
 	local self = switch and switch(key) or setmetatable({}, metaAny)
+	self.entity = entity
+	self.context = "OTHER"
+
 	local priv = {
 		models = {},
 		visible = true,
@@ -860,7 +867,7 @@ local function new(key)
 	self[1] = priv
 
 	if switch then
-		local id = getID(key)
+		local id = getID(key, entity)
 		uuids[priv.uuid] = id
 		all[id] = self
 
@@ -876,7 +883,8 @@ end
 ---
 ---Calls the deinit event
 ---@param key FOXSkull.key.genericKey
-local function remove(key)
+---@param entity Entity?
+local function remove(key, entity)
 	local self = get(key)
 	if not self then return end
 
@@ -884,7 +892,7 @@ local function remove(key)
 
 	local priv = self[1]
 	uuids[priv.uuid] = nil
-	all[getID(key) or key] = nil
+	all[getID(key, entity) or key] = nil
 
 	for _, model in pairs(priv.models) do
 		model:getParent():remove()
@@ -1017,7 +1025,7 @@ function events.skull_render(delta, block, item, entity, context)
 	local this = block or item
 
 	---@type FOXSkull.any
-	local self = get(this) or new(this)
+	local self = get(this, entity) or new(this, entity)
 	local priv = self[1]
 
 	local time = client.getSystemTime()
@@ -1027,7 +1035,6 @@ function events.skull_render(delta, block, item, entity, context)
 	priv.timestamp = time
 	sharedDelta = delta
 
-	self.entity = entity
 	self.context = context
 
 	priv.contexts[context] = { entity }
