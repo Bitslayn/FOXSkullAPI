@@ -7,14 +7,23 @@ FOX's SkullAPI v1.0.0-dev
 
 Github: https://github.com/Bitslayn/FOXSkullAPI
 Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
-
-Works best when used with these scripts:
-
-FOX's Line Utility - https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/line.lua
-FOX's Item Bakery - [TODO]
 ]]
 
 --==============================================================================================================================
+--#REGION ˚♡ Utility Functions ♡˚
+--==============================================================================================================================
+
+---Raises an error if the value of its argument v is false (i.e., `nil` or `false`); otherwise, returns all its arguments. In case of error, `message` is the error object; when absent, it defaults to `"assertion failed!"`
+---@generic T
+---@param v? T
+---@param message? any
+---@param level? integer
+---@return T v
+function assert(v, message, level)
+	return v or error(message or "Assertion failed!", (level or 1) + 1)
+end
+
+--#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkull ♡˚
 --==============================================================================================================================
 
@@ -30,6 +39,8 @@ local skull = {}
 ---@field error string?
 ---@field errorOffset number?
 ---@field contexts {[FOXSkull.any.context]: any[]} Used for the tick event to run it on every item context. The table stores all the variables that should be set that context, currently only having to set the entity
+---@field generatedItem FOXSkull.itemGenerator
+---@field vars table
 
 ---@alias FOXSkull.block.context
 ---| "BLOCK"                   Placed as a block
@@ -103,8 +114,161 @@ local all = {}
 local uuids = {}
 
 ------------------------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Item Generator ♡˚
+------------------------------------------------------------------------------------------------
+
+---Returns if the given string is a json string
+---@param str string
+---@return boolean
+local function isJson(str)
+	local success, result = pcall(parseJson, str)
+	return success and str ~= result
+end
+
+---Packs the given strings into a table of json strings
+---@param multiline boolean?
+---@param index string
+---@param ... string|string[]
+---@return string|string[]
+local function pack(multiline, index, ...)
+	local lines = {}
+
+	-- Build line sections
+
+	for k, v in pairs({ ... }) do
+		if type(v) == "table" then
+			local sections = {}
+			for k2, v2 in pairs(v) do
+				sections[k2] = isJson(v2) and parseJson(v2) or { [index] = v2 }
+			end
+			lines[k] = sections
+		else
+			lines[k] = isJson(v) and parseJson(v) or { [index] = v }
+		end
+	end
+
+	-- Format into valid NBT
+
+	local nbt
+	if multiline then
+		nbt = {}
+		for k, v in pairs(lines) do nbt[k] = toJson(v) end
+	else
+		nbt = toJson(lines)
+	end
+	return nbt
+end
+
+---------- ˚♡ Generator ♡˚ ----------
+
+---@class FOXSkull.itemGenerator
+---@field item Minecraft.itemID
+---@field data table
+local itemGenerator = {
+	---@param self FOX.Item
+	---@package
+	__tostring = function(self)
+		local replace = {
+			"[I;" .. toJson({ client.uuidToIntArray(self.uuid) }):sub(2, math.huge),
+		}
+		return self.item .. toJson(self.data):gsub('"%%(%d+)"', function(n) return replace[tonumber(n)] end)
+	end,
+}
+---@package
+itemGenerator.__index = itemGenerator
+
+---Automagically creates a new item object, or returns the current one
+---@generic self
+---@param self self
+---@return self
+local function newItem(self)
+	if self ~= itemGenerator then return self end
+	return setmetatable({
+		item = "minecraft:air",
+		data = {
+			display = {},
+			SkullOwner = { Id = "%1" },
+		},
+	}, itemGenerator)
+end
+
+---Sets this item's ID
+---@param item Minecraft.itemID?
+---@return self
+function itemGenerator:setItem(item)
+	self = newItem(self)
+	self.item = item or "minecraft:air"
+	return self
+end
+
+---Sets the name of this item
+---
+---Can take multiple strings, and takes json strings. Group together strings to put them on the same line
+---@param ... string|string[]?
+---@return self
+function itemGenerator:setName(...)
+	self = newItem(self)
+	self.data.display.Name = ... and pack(false, "text", ...)
+	return self
+end
+
+---Sets the lore of this item
+---
+---Can take multiple strings, and takes json strings. Group together strings to put them on the same line
+---@param ... string|string[]?
+---@return self
+function itemGenerator:setLore(...)
+	self = newItem(self)
+	self.data.display.Lore = ... and pack(true, "text", ...)
+	return self
+end
+
+---Sets the skull owner UUID of this item, if it is a player skull
+---@param uuid string
+function itemGenerator:setUUID(uuid)
+	self = newItem(self)
+	self.uuid = uuid
+	return self
+end
+
+function itemGenerator:setTexture(...)
+	self = newItem(self)
+	self.data.SkullOwner.Properties = {}
+	self.data.SkullOwner.Properties.textures = ... and parseJson(pack(false, "Value", ...) --[[@as string]])
+	return self
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Methods ♡˚
 ------------------------------------------------------------------------------------------------
+
+---------- ˚♡ Base64 ♡˚ ----------
+
+local base64 = {}
+
+---Converts the given string to base64
+---@param value string
+---@return string
+function base64.encode(value)
+	local buffer = data:createBuffer()
+	buffer:writeByteArray(value)
+	buffer:setPosition(0)
+	local encoded = buffer:readBase64()
+	buffer:close()
+	return encoded
+end
+
+---Converts from base64 to a readable string
+---@param value string
+---@return string
+function base64.decode(value)
+	local buffer = data:createBuffer()
+	buffer:writeBase64(value)
+	buffer:setPosition(0)
+	local decoded = buffer:readByteArray()
+	buffer:close()
+	return decoded
+end
 
 ---------- ˚♡ Blocks ♡˚ ----------
 
@@ -293,16 +457,6 @@ function itemClass:getLore()
 	return parseLore(lines)
 end
 
----@param str string
-local function parseBase64(str)
-	local buffer = data:createBuffer()
-	buffer:writeBase64(str)
-	buffer:setPosition(0)
-	local decoded = buffer:readByteArray()
-	buffer:close()
-	return decoded
-end
-
 ---@param textures table
 ---@param i integer
 ---@param j integer
@@ -311,7 +465,7 @@ local function parseTextures(textures, i, j)
 	local data = ""
 	for k = math.max(i, 1), math.min(j, #textures) do
 		local texture = textures[k]
-		data = data .. parseBase64(texture.value or texture.Value)
+		data = texture and data .. base64.decode(texture.value or texture.Value) or data
 	end
 	return data
 end
@@ -398,22 +552,111 @@ function anyClass:getUUID()
 	return self[1].uuid
 end
 
+---------- ˚♡ Vars ♡˚ ----------
+
+---Sets a variable on this skull
+---
+---Variables can be accessed with <skull>:getVariable() and is stored into the skull's texture data when given with <skull>:getItemStack()
+---@generic self
+---@param self self
+---@param key any
+---@param value any
+---@return self
+function anyClass:variable(key, value)
+	self[1].vars[key] = value
+	return self
+end
+
+---Sets a variable on this skull
+---
+---Variables can be accessed with <skull>:getVariable() and is stored into the skull's texture data when given with <skull>:getItemStack()
+---@generic self
+---@param self self
+---@param key any
+---@param value any
+---@return self
+function anyClass:setVariable(key, value)
+	self[1].vars[key] = value
+	return self
+end
+
+---Gets a variable stored on this skull
+---
+---Returns an unlocked table of variables stored if no key is provided
+---@param key any?
+---@return unknown
+function anyClass:getVariable(key)
+	return not key and self[1].vars or self[1].vars[key]
+end
+
+---------- ˚♡ Item Generator ♡˚ ----------
+
+---Gets this skull as an ItemStack
+---
+---All variables set to this skull will be stored in this ItemStack and is placable
+---
+---Any keys or values that aren't json compatible will be nullified when converting a skull to an item
+---@param count number?
+---@param damage number?
+---@return ItemStack
+---@nodiscard
+function anyClass:getItemStack(count, damage)
+	local priv = self[1]
+	return world.newItem(
+		tostring(priv.generatedItem:setTexture(base64.encode(toJson(priv.vars)))),
+		count,
+		damage
+	)
+end
+
+---Returns the first open hotbar slot from the selected slot
+---
+---If no slot is open then the current selected slot is used
+---@return number
+local function findOpenSlot()
+	local selectedSlot = player:getNbt().SelectedItemSlot
+	local slot = selectedSlot
+	repeat
+		if host:getSlot(slot).id == "minecraft:air" then break end
+		slot = (slot + 1) % 9
+	until slot == selectedSlot
+	return slot
+end
+
+---Gives the host this skull as an item in their hotbar
+---
+---Only works if this player is in creative. OP is not required
+---@generic self
+---@param self self
+---@param count number?
+---@param damage number?
+---@return self
+function anyClass:giveItem(count, damage)
+	host:setSlot(findOpenSlot(), self --[[@as FOXSkull.any]]:getItemStack(count, damage))
+	return self
+end
+
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Events ♡˚
 ------------------------------------------------------------------------------------------------
 
 ---@alias FOXSkullAPI.Events.block fun(skull: FOXSkull.block, block: BlockState)
 ---@alias FOXSkullAPI.Events.item fun(skull: FOXSkull.item, item: ItemStack)
+---@alias FOXSkullAPI.Events.any fun(skull: FOXSkull.any)
 ---@class FOXSkullAPI.Events
 local skullEvents = {
 	---@type FOXSkullAPI.Events.block[]
 	block_init = {},
 	---@type FOXSkullAPI.Events.item[]
 	item_init = {},
+	---@type FOXSkullAPI.Events.any[]
+	skull_init = {},
 	---@type FOXSkullAPI.Events.block[]
 	block_deinit = {},
 	---@type FOXSkullAPI.Events.item[]
 	item_deinit = {},
+	---@type FOXSkullAPI.Events.any[]
+	skull_deinit = {},
 }
 
 ---Catches an internal skull error
@@ -428,7 +671,9 @@ local function try(self, f, ...)
 
 	result = "§c[error] §f" .. avatar:getEntityName() .. "§c : " .. tostring(result)
 		:gsub("\9", "  ")
-		:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?")
+	if not result:find("^[^\n]*FOXSkullAPI[^\n]*") then -- Truncate strace if FOXSkullAPI isn't at top of traceback
+		result = result:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?")
+	end
 
 	local priv = self[1]
 	priv.error = result
@@ -438,13 +683,20 @@ end
 ---@param self FOXSkull.any
 ---@param state boolean
 local function init(self, state)
+	-- Converts the type into a skull event string. The state is whether this is an init or deinit event.
+	-- FOXSkull.block ORIGINAL => FOXSkull.(block) SUBSTRING => block_init CONCATENATED
+
 	local t = type(self)
-	local k = t:sub(10, #t) .. (state and "_init" or "_deinit")
+	local k1 = t:sub(10, #t) .. (state and "_init" or "_deinit")
+	local k2 = state and "skull_init" or "skull_deinit"
+
+	-- Tries to call the appropriate event functions defined by the user
 
 	try(self, function()
 		local this = self --[[@as FOXSkull.block]].block or self --[[@as FOXSkull.item]].item
 		---@diagnostic disable-next-line: param-type-mismatch
-		for _, func in pairs(skullEvents[k]) do func(self, this) end
+		for _, func in pairs(skullEvents[k1]) do func(self, this) end
+		for _, func in pairs(skullEvents[k2]) do func(self, this) end
 	end)
 end
 
@@ -486,17 +738,30 @@ end
 ---@overload fun(key: BlockState): FOXSkull.block?
 ---@overload fun(key: ItemStack): FOXSkull.item?
 ---@overload fun(key: Vector3): FOXSkull.block?
-function skull.get(key)
+local function get(key)
 	return all[getID(key) or key]
 end
 
-local get = skull.get
-
 ---------- ˚♡ New ♡˚ ----------
 
-local metaAny = { __index = anyClass, __type = "FOXSkull.any" }
-local metaBlock = { __index = blockClass, __type = "FOXSkull.block" }
-local metaItem = { __index = itemClass, __type = "FOXSkull.item" }
+local whitelist = {
+	block = true,
+	item = true,
+	entity = true,
+	context = true,
+	render = true,
+	tick = true,
+	[1] = true,
+}
+
+local function lock(s, k, v)
+	assert(whitelist[k], 'Cannot assign value to key "' .. k .. '"', 2)
+	rawset(s, k, v)
+end
+
+local metaAny = { __index = anyClass, __newindex = lock, __type = "FOXSkull.any" }
+local metaBlock = { __index = blockClass, __newindex = lock, __type = "FOXSkull.block" }
+local metaItem = { __index = itemClass, __newindex = lock, __type = "FOXSkull.item" }
 
 local newSwitch = {
 	---@param key BlockState
@@ -525,7 +790,7 @@ local newSwitch = {
 ---@overload fun(key: BlockState): FOXSkull.block
 ---@overload fun(key: ItemStack): FOXSkull.item
 ---@overload fun(): FOXSkull.any
-function skull.new(key)
+local function new(key)
 	local switch = newSwitch[type(key)]
 
 	local self = switch and switch(key) or setmetatable({}, metaAny)
@@ -535,7 +800,13 @@ function skull.new(key)
 		uuid = client.intUUIDToString(client.generateUUID()),
 		timestamp = switch and client.getSystemTime() or math.huge,
 		contexts = {},
+		generatedItem = itemGenerator
+			:setItem("minecraft:player_head")
+			:setUUID(avatar:getUUID()),
 	}
+
+	local data = self:getData()
+	priv.vars = isJson(data) and parseJson(data) or {}
 
 	self[1] = priv
 
@@ -550,15 +821,13 @@ function skull.new(key)
 	return self
 end
 
-local new = skull.new
-
 ---------- ˚♡ Remove ♡˚ ----------
 
 ---Removes a skull by its generic key
 ---
 ---Calls the deinit event
 ---@param key FOXSkull.key.genericKey
-function skull.remove(key)
+local function remove(key)
 	local self = get(key)
 	if not self then return end
 
@@ -573,18 +842,13 @@ function skull.remove(key)
 	end
 end
 
-local remove = skull.remove
-
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Render ♡˚
 ------------------------------------------------------------------------------------------------
 
----------- ˚♡ Outline ♡˚ ----------
+local blank = textures:newTexture("blank", 1, 1)
 
-local line = nil
-for _, path in pairs(listFiles(nil, true)) do
-	if path:find("%.line$") then line = require(path) end
-end
+---------- ˚♡ Special Models ♡˚ ----------
 
 ---@param color Vector3|Vector4?
 ---@param icon string?
@@ -607,7 +871,7 @@ local function newOutline(color, icon)
 		:newPart("pvt")
 		:matrix(iconMat)
 	pvt:newText("icon")
-		:pos(0, 7, 0)
+		:pos(0, 7.75, 0)
 		:alignment("CENTER")
 		:text(icon)
 		:light(15)
@@ -622,13 +886,37 @@ local function newOutline(color, icon)
 		:background(true)
 		:seeThrough(true)
 
-	if line then
-		local outline = line.newOutline()
-		outline.model
-			:matrix(outlineMat)
-			:moveTo(mdp)
-		outline.color = color
+	local outline = mdp:newPart("outline")
+
+	local i = 0
+	for axis = 0, 2 do
+		for rot = 0, 3 do
+			i = i + 1
+
+			local turn = math.floor(axis / 2)
+			local mat = matrices.mat4()
+				-- Create tube (Translates and rotates to form sides of tube)
+				:translate(0.5, 0, -0.5) -- *Change y to separate tubes*
+				:rotate(0, rot * 90)
+
+				-- Overlap tubes
+				:translate(turn * -0.5, axis * 0.5 - turn * 0.5, axis * 0.5 - turn)
+				-- Rotate horizontal tubes
+				:rotate(axis * 90, 0, turn * 90)
+				-- Uniform transform entire outline (This is done since the outline would currently be inside the floor)
+				:translate(0, 0.5)
+
+
+			outline:newSprite(i .. "")
+				:setTexture(blank)
+				:size(1, 1)
+				:matrix(mat)
+				:renderType("LINES")
+				:color(color)
+		end
 	end
+
+	outline:matrix(outlineMat)
 
 	return mdp
 end
@@ -636,9 +924,18 @@ end
 local hoverOutline = newOutline(vec(1, 1, 1, 0.4), ":skull_4:")
 local errorOutline = newOutline(vec(1, 0, 0, 0.4), "§4✖")
 
----------- ˚♡ Default Models ♡˚ ----------
+local errorFlat = models:newPart("flatError", "Skull")
+	:visible(false)
+errorFlat:newText("icon")
+	:text("§4✖")
+	:alignment("CENTER")
+	:matrix(matrices.mat4():translate(0, 8, -16):rotate(27, -45))
 
-local vanillaSkull = models:newPart("vanillaSkull", "Skull"):visible(false)
+
+local vanillaSkull = models:newPart("vanillaSkull", "Skull")
+	:visible(false)
+vanillaSkull:newSprite("Sprite")
+	:setTexture(blank)
 local skullItem = vanillaSkull:newItem("Skull")
 	:pos(0, 8, 0)
 	:item("minecraft:player_head")
@@ -649,7 +946,7 @@ pcall(skullItem.item, skullItem, "minecraft:player_head" .. toJson { SkullOwner 
 local invisibleSkull = models:newPart("invisibleSkull", "Skull")
 	:visible(false)
 invisibleSkull:newSprite("Sprite")
-	:setTexture(textures:newTexture("blank", 1, 1))
+	:setTexture(blank)
 
 ---------- ˚♡ Render ♡˚ ----------
 
@@ -659,6 +956,8 @@ local viewer = client.getViewer()
 local model, outline
 ---@type number
 local sharedDelta
+
+local flipHover = client.compareVersions(client.getVersion(), "1.21") ~= -1
 
 function events.skull_render(delta, block, item, entity, context)
 	-- Update vars
@@ -680,7 +979,7 @@ function events.skull_render(delta, block, item, entity, context)
 	sharedDelta = delta
 
 	self.entity = entity
-	self.context = context --[[@as FOXSkull.any.context]]
+	self.context = context
 
 	priv.contexts[context] = { entity }
 
@@ -713,20 +1012,24 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if not model then return end
 
-	if priv.error then
-		outline = errorOutline
+	if priv.error and not context:find("FIRST_PERSON") then -- Error outlines don't render in first person or the GUI with Sodium installed
+		if context == "GUI" then
+			outline = errorFlat
+		else
+			outline = errorOutline
 
-		local isSelected =
-			block and viewer:getTargetedBlock():getPos() == block:getPos() or
-			entity and viewer:getTargetedEntity() == entity
-		local tpvt = outline.bb.tpvt:visible(isSelected)
+			local isSelected =
+				block and viewer:getTargetedBlock():getPos() == block:getPos() or
+				entity and viewer:getTargetedEntity() == entity
+			local tpvt = outline.bb.tpvt:visible(isSelected)
 
-		if isSelected then
-			tpvt:pos(priv.errorOffset, -8, 0)
-			tpvt:getTask("fg") --[[@as TextTask]]
-				:text(priv.error)
-			tpvt:getTask("bg") --[[@as TextTask]]
-				:text(priv.error)
+			if isSelected then
+				tpvt:pos(priv.errorOffset, -8, 0)
+				tpvt:getTask("fg") --[[@as TextTask]]
+					:text(priv.error)
+				tpvt:getTask("bg") --[[@as TextTask]]
+					:text(priv.error)
+			end
 		end
 	elseif block then
 		local main = viewer:getHeldItem()
@@ -735,7 +1038,11 @@ function events.skull_render(delta, block, item, entity, context)
 			off.id == "minecraft:player_head" and get(off) then
 			local scr = vectors.toCameraSpace(block:getPos() + 0.5)
 
-			local isHovering = scr.xy:length() ^ 2 < math.abs(scr.z) * 1.5 ^ 2
+			if flipHover then
+				scr:mul(-1, 1, -1)
+			end
+
+			local isHovering = scr.xy:length() ^ 2 < scr.z * 1.5 ^ 2
 			outline = isHovering and hoverOutline
 		end
 	end
@@ -790,8 +1097,10 @@ end
 ---@class FOXSkulls
 ---@field block_init FOXSkullAPI.Events.block
 ---@field item_init FOXSkullAPI.Events.item
+---@field skull_init FOXSkullAPI.Events.any
 ---@field block_deinit FOXSkullAPI.Events.block
 ---@field item_deinit FOXSkullAPI.Events.item
+---@field skull_deinit FOXSkullAPI.Events.any
 ---@field newSkull fun(name: string?, lore: string?): FOXSkull.any
 ---@field protected [FOXSkull.key.uuid] FOXSkull.any?
 ---@field protected [BlockState] FOXSkull.block?
@@ -805,11 +1114,11 @@ local skulls = {}
 ---@param lore string?
 ---@nodiscard
 function skulls.newSkull(name, lore)
-	local self = skull.new()
+	local self = new()
 
-	local priv = self[1]
-	priv.name = name
-	priv.lore = lore
+	self[1].generatedItem
+		:setName(name)
+		:setLore(lore)
 
 	return self
 end
@@ -827,7 +1136,7 @@ return setmetatable(skulls, {
 	end,
 	__type = "FOXSkullAPI",
 	__version = "1.0.0",
-	__branch = "dev-flat",
+	__branch = "dev",
 })
 
 --#ENDREGION

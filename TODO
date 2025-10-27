@@ -4,8 +4,4 @@ item:setItemRotation(context, rotation)
 item:setItemPosition(context, position)
 item:setItemScale(context, scale)
 
-Make skulls store variables to the texture
-Allow for converting a skull to an ItemStack, to allow setting a hotbar slot
-
 Work on the wiki
-Fix bug where two separate models on both hands display the same model (Discovered)
