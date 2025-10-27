@@ -1127,7 +1127,7 @@ function skulls.newSkull(name, lore)
 	return self
 end
 
-return setmetatable(skulls, {
+local meta = {
 	__index = function(_, k) return get(k) end,
 	__newindex = function(_, k, v)
 		if not skullEvents[k] then
@@ -1141,6 +1141,10 @@ return setmetatable(skulls, {
 	__type = "FOXSkullAPI",
 	__version = "1.0.0",
 	__branch = "dev",
-})
+}
+
+avatar:store("FOXSkullAPI", { version = meta.__version, branch = meta.__branch })
+
+return setmetatable(skulls, meta)
 
 --#ENDREGION

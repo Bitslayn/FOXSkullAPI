@@ -17,13 +17,3 @@ This is not a complete list of issues, and only includes the issues I've discove
 | Skull outline emoji stops animating                                | Reloading resources causes animated emojis which are rendering during the reload to stop animating                                                                                                                                                             |                        -                         | 1.16.5 - 1.21.8  |                           Not fixed                           |
 | Erroring skull shows a steve or default skin                       | Avatars don't store the name of their owner when a player is offline. A fake head is used to "disable" a skull's model, and that head is given the incorrect name causing this issue                                                                           |                        -                         | 1.16.5 - 1.21.8  |                           Unfixable                           |
 | Skulls don't render in Action Wheel                                | Action wheel rendering code was rewritten in [gh#332](https://github.com/FiguraMC/Figura/pull/332) to prioritize rendering ModelParts instead of items. Items are instead rendered as ItemTasks which cannot render the custom skull model of a matching owner |                        -                         | 1.16.5 - 1.21.8  |                           Not fixed                           |
-
-# Compatibility Chart
-This API has functions which access the skull's NBT (components on 1.20.5 and above)
-This chart shows which NBT is accessed by skulls, and what versions they can be accessed from.
-
-|              |     Blocks      |      Items      |
-| :----------: | :-------------: | :-------------: |
-|   **Name**   |      1.21+      | 1.16.5 - 1.21.8 |
-|   **Lore**   |        -        | 1.16.5 - 1.21.8 |
-| **Textures** | 1.16.5 - 1.21.8 | 1.16.5 - 1.21.8 |
