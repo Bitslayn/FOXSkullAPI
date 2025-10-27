@@ -1,7 +1,7 @@
-item:setItemTexture(u, v, x, y)
-item:setItemDisplayMode(mode)
-item:setItemRotation(context, rotation)
-item:setItemPosition(context, position)
-item:setItemScale(context, scale)
+bakedItem:texture(texture, u, v, width, height, scale) -- Sets the texture of this item
+bakedItem:applyPose(pose) -- Applies a preset pose for all display modes
+bakedItem:rot(mode, rotation)
+bakedItem:pos(mode, position)
+bakedItem:scale(mode, scale)
 
-Work on the wiki
+-- Work on the wiki
