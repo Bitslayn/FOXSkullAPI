@@ -332,8 +332,10 @@ end
 ---@return self
 ---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context?): FOXSkull.any
 ---@overload fun(self: FOXSkull.block, model: {[FOXSkull.block.context]: ModelPart}): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: {[FOXSkull.item.context]: ModelPart}): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: {[FOXSkull.any.context]: ModelPart}): FOXSkull.any
 function anyClass:setModel(model, context)
 	local priv = self[1]
 
@@ -372,8 +374,10 @@ end
 ---@return self
 ---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context?): FOXSkull.any
 ---@overload fun(self: FOXSkull.block, model: {[FOXSkull.block.context]: ModelPart}): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: {[FOXSkull.item.context]: ModelPart}): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: {[FOXSkull.any.context]: ModelPart}): FOXSkull.any
 function anyClass:model(model, context)
 	return self:setModel(model, context)
 end
