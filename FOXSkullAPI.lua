@@ -9,6 +9,11 @@ Github: https://github.com/Bitslayn/FOXSkullAPI
 Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 ]]
 
+---Set this to true to allow skull models to be searched for and consumed automatically
+---
+---Consumed skulls follow the name scheme "Skull #Item Name" and apply that model when the item's name matches what's after the #
+local autoConsumeModels = true
+
 --==============================================================================================================================
 --#REGION ˚♡ Utility Functions ♡˚
 --==============================================================================================================================
@@ -357,10 +362,12 @@ function anyClass:setModel(model, context)
 		if model then
 			priv.models[context] = models:newPart("skullModel-" .. context)
 				:parentType("Skull")
-				:pos(-model:getPivot())
+				:pos(-model --[[@as ModelPart]]:getPivot())
 				:visible(false)
 
-			model:copy("copy"):moveTo(priv.models[context])
+			model --[[@as ModelPart]]:copy("copy")
+				:visible(true)
+				:moveTo(priv.models[context])
 		end
 	end
 
@@ -702,6 +709,44 @@ local function init(self, state)
 		for _, func in pairs(skullEvents[k1]) do func(self, this) end
 		for _, func in pairs(skullEvents[k2]) do func(self, this) end
 	end)
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Consumer ♡˚
+------------------------------------------------------------------------------------------------
+
+---Consumes a modelpart, allowing that part to be applied to the skull of a matching name
+---@param part ModelPart
+---@param name string
+local function consume(part, name)
+	name = name:lower()
+	part:parentType("None"):visible(false)
+
+	table.insert(
+		skullEvents.skull_init,
+		---@param self FOXSkull.any
+		function(self)
+			if self:getName():lower():find(name) then
+				self:model(part)
+			end
+		end
+	)
+end
+
+---Searches all children of a modelpart group
+---@param part ModelPart
+local function searchModels(part)
+	for _, chld in ipairs(part:getChildren()) do
+		if chld:getParentType() == "Skull" then
+			local suffix = chld:getName():match("^[^#]*#(.*)$")
+			if suffix then consume(chld, suffix) end
+		end
+		searchModels(chld)
+	end
+end
+
+if autoConsumeModels then
+	searchModels(models)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------

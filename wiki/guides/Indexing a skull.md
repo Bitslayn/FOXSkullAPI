@@ -11,7 +11,7 @@ Skulls can be indexed from the `skulls` table returned to you when you require t
 ```lua
 -- Do not copy this snippet
 
-local skulls = require("SkullAPI/module")
+local skulls = require("FOXSkullAPI")
 local skull = skulls[vec(0, 0, 0)]
 ```
 
