@@ -607,17 +607,17 @@ end
 ---All variables set to this skull will be stored in this ItemStack and is placable
 ---
 ---Any keys or values that aren't json compatible will be nullified when converting a skull to an item
----@param count number?
----@param damage number?
+---@param count integer?
+---@param damage integer?
 ---@return ItemStack
 ---@nodiscard
 function anyClass:getItemStack(count, damage)
 	local priv = self[1]
-	return world.newItem(
-		tostring(priv.generatedItem:setTexture(base64.encode(toJson(priv.vars)))),
-		count,
-		damage
-	)
+
+	priv.generatedItem
+		:setTexture(base64.encode(toJson(priv.vars)))
+
+	return world.newItem(tostring(priv.generatedItem), count, damage)
 end
 
 ---Returns the first open hotbar slot from the selected slot

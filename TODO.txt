@@ -4,4 +4,7 @@ bakedItem:rot(mode, rotation)
 bakedItem:pos(mode, position)
 bakedItem:scale(mode, scale)
 
+Fix issues with modelpart copying
+Make holding an erroring skull show the error on screen
+
 -- Work on the wiki
