@@ -88,6 +88,7 @@ local anyClass = {}
 ---@field context FOXSkull.block.context
 ---@field render FOXSkull.block.render?
 ---@field tick FOXSkull.block.tick?
+---@field onPunch function?
 local blockClass = anyClass
 ---Represents a unique skull item being rendered
 ---@class FOXSkull.item: FOXSkull.any
@@ -326,6 +327,14 @@ function blockClass:getDir()
 		local facing = block.properties.facing
 		return dirs[facing]
 	end
+end
+
+---Sets a function to run when this skull is punched
+---@param func function
+---@return FOXSkull.block
+function blockClass:setOnPunch(func)
+	self.onPunch = func
+	return self
 end
 
 ---------- ˚♡ Model ♡˚ ----------
@@ -691,6 +700,8 @@ local function try(self, f, ...)
 	priv.errorOffset = client.getTextWidth(result) * 0.125
 end
 
+local onMax = avatar:getMaxWorldTickCount() == 2 ^ 31 - 1 and avatar:getMaxRenderCount() == 2 ^ 31 - 1
+
 ---@param self FOXSkull.any
 ---@param state boolean
 local function init(self, state)
@@ -704,6 +715,8 @@ local function init(self, state)
 	-- Tries to call the appropriate event functions defined by the user
 
 	try(self, function()
+		assert(onMax, "FOXPlayerSkull requires max permissions!", 4)
+
 		local this = self --[[@as FOXSkull.block]].block or self --[[@as FOXSkull.item]].item
 		---@diagnostic disable-next-line: param-type-mismatch
 		for _, func in pairs(skullEvents[k1]) do func(self, this) end
@@ -804,6 +817,7 @@ local whitelist = {
 	context = true,
 	render = true,
 	tick = true,
+	onPunch = true,
 	[1] = true,
 }
 
@@ -902,6 +916,8 @@ end
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Render ♡˚
 ------------------------------------------------------------------------------------------------
+
+local viewer = client.getViewer()
 
 local blank = textures:newTexture("blank", 1, 1)
 
@@ -1007,8 +1023,6 @@ invisibleSkull:newSprite("Sprite")
 
 ---------- ˚♡ Render ♡˚ ----------
 
-local viewer = client.getViewer()
-
 ---@type ModelPart, ModelPart
 local model, outline
 ---@type number
@@ -1108,16 +1122,44 @@ end
 
 ---------- ˚♡ Tick ♡˚ ----------
 
+---@type Player[]
+local cachedPunches
+
+---@param self FOXSkull.block
+local function findPuncher(self)
+	if not cachedPunches then
+		cachedPunches = {}
+
+		for _, entity in pairs(world.getPlayers()) do
+			if entity:getSwingTime() == 1 then table.insert(cachedPunches, entity) end
+		end
+	end
+
+	for _, entity in ipairs(cachedPunches) do
+		if entity:getTargetedBlock(true, 5):getPos() == self.block:getPos() then return true end
+	end
+end
+
 function events.world_tick()
+	cachedPunches = nil
+
 	for _, self in pairs(all) do
 		local priv = self[1]
-		if self.tick and not priv.error then
+		if priv.error then goto continue end
+
+		if self.tick then
 			for _, params in pairs(priv.contexts) do
 				self.entity = params[1]
 				local this = self --[[@as FOXSkull.block]].block or self --[[@as FOXSkull.item]].item
 				try(self, self.tick, self, this)
 			end
 		end
+
+		if self --[[@as FOXSkull.block]].onPunch and findPuncher(self --[[@as FOXSkull.block]]) then
+			self --[[@as FOXSkull.block]].onPunch()
+		end
+
+		::continue::
 	end
 end
 
