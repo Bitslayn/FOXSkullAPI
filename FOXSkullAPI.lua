@@ -926,8 +926,8 @@ local blank = textures:newTexture("blank", 1, 1)
 ---@param color Vector3|Vector4?
 ---@param icon string?
 ---@return ModelPart
-local function newOutline(color, icon)
-	local mdp = models:newPart("skullOutline", "Skull")
+local function newWorldOverlay(color, icon)
+	local mdp = models:newPart("newWorldOverlay", "Skull")
 		:visible(false)
 
 	local outlineMat = matrices.mat4() * 0.5
@@ -939,12 +939,12 @@ local function newOutline(color, icon)
 
 	local bb = mdp
 		:newPart("bb", "Camera")
-		:pivot(0, 4, 0)
+		:pivot(0, 4)
 	local pvt = bb
 		:newPart("pvt")
 		:matrix(iconMat)
 	pvt:newText("icon")
-		:pos(0, 7.75, 0)
+		:pos(0, 7.75)
 		:alignment("CENTER")
 		:text(icon)
 		:light(15)
@@ -994,15 +994,44 @@ local function newOutline(color, icon)
 	return mdp
 end
 
-local hoverOutline = newOutline(vec(1, 1, 1, 0.4), ":skull_4:")
-local errorOutline = newOutline(vec(1, 0, 0, 0.4), "§4✖")
+local hoverWorld = newWorldOverlay(vec(1, 1, 1, 0.4), ":skull_4:")
+local errorWorld = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖")
 
-local errorFlat = models:newPart("flatError", "Skull")
-	:visible(false)
-errorFlat:newText("icon")
-	:text("§4✖")
-	:alignment("CENTER")
-	:matrix(matrices.mat4():translate(0, 8, -16):rotate(27, -45))
+---@param icon string?
+---@return ModelPart
+local function newFlatOverlay(icon)
+	local mdp = models:newPart("newFlatOverlay", "Skull")
+		:visible(false)
+
+	local iconMat = matrices.mat4()
+		:translate(0, 8, -16)
+		:rotate(27, -45)
+	local tooltipMat = matrices.mat4()
+		:translate(client.getScaledWindowSize():mul(-0.5, -0.75).xy_)
+		:rotate(27, -45)
+	tooltipMat.v44 = 0
+
+	mdp:newText("icon")
+		:text(icon)
+		:alignment("CENTER")
+		:matrix(iconMat)
+
+	local bb = mdp
+		:newPart("bb")
+		:matrix(tooltipMat)
+	local tpvt = bb
+		:newPart("tpvt")
+	tpvt:newText("fg")
+		:light(15)
+	tpvt:newText("bg")
+		:light(15)
+		:background(true)
+		:seeThrough(true)
+
+	return mdp
+end
+
+local errorFlat = newFlatOverlay("§4✖")
 
 
 local vanillaSkull = models:newPart("vanillaSkull", "Skull")
@@ -1024,11 +1053,20 @@ invisibleSkull:newSprite("Sprite")
 ---------- ˚♡ Render ♡˚ ----------
 
 ---@type ModelPart, ModelPart
-local model, outline
+local model, overlay
 ---@type number
 local sharedDelta
 
 local flipHover = client.compareVersions(client.getVersion(), "1.21") ~= -1
+
+---@return FOXSkull.item?
+local function getViewerHeldSkull()
+	local main = viewer:getHeldItem()
+	local off = viewer:getHeldItem(true)
+
+	return main.id == "minecraft:player_head" and get(main) or
+			off.id == "minecraft:player_head" and get(off) --[[@as FOXSkull.item]]
+end
 
 function events.skull_render(delta, block, item, entity, context)
 	-- Update vars
@@ -1075,37 +1113,34 @@ function events.skull_render(delta, block, item, entity, context)
 	if model then model:visible(true) end
 
 
-	-- Render this skull's outline
+	-- Render this skull's overlay
 
-	if outline then outline:visible(false) end
-	outline = nil
+	if overlay then overlay:visible(false) end
+	overlay = nil
 
 	if not model then return end
 
-	if priv.error and not context:find("FIRST_PERSON") then -- Error outlines don't render in first person or the GUI with Sodium installed
-		if context == "GUI" then
-			outline = errorFlat
-		else
-			outline = errorOutline
+	if priv.error and not context:find("FIRST_PERSON") then
+		-- Line render type doesn't work in GUIs or first person held items with Sodium installed
 
-			local isSelected =
-				block and viewer:getTargetedBlock():getPos() == block:getPos() or
-				entity and viewer:getTargetedEntity() == entity
-			local tpvt = outline.bb.tpvt:visible(isSelected)
+		local isGUI = context == "GUI"
+		overlay = isGUI and errorFlat or errorWorld
 
-			if isSelected then
-				tpvt:pos(priv.errorOffset, -8, 0)
-				tpvt:getTask("fg") --[[@as TextTask]]
-					:text(priv.error)
-				tpvt:getTask("bg") --[[@as TextTask]]
-					:text(priv.error)
-			end
+		local isSelected =
+			isGUI and getViewerHeldSkull() == self or
+			block and viewer:getTargetedBlock():getPos() == block:getPos() or
+			entity and viewer:getTargetedEntity() == entity
+		local tpvt = overlay.bb.tpvt:visible(isSelected)
+
+		if isSelected then
+			tpvt:pos(priv.errorOffset * (isGUI and 4 or 1), -8, 0)
+			tpvt:getTask("fg") --[[@as TextTask]]
+				:text(priv.error)
+			tpvt:getTask("bg") --[[@as TextTask]]
+				:text(priv.error)
 		end
 	elseif block then
-		local main = viewer:getHeldItem()
-		local off = viewer:getHeldItem(true)
-		if main.id == "minecraft:player_head" and get(main) or
-			off.id == "minecraft:player_head" and get(off) then
+		if getViewerHeldSkull() then
 			local scr = vectors.toCameraSpace(block:getPos() + 0.5)
 
 			if flipHover then
@@ -1113,11 +1148,11 @@ function events.skull_render(delta, block, item, entity, context)
 			end
 
 			local isHovering = scr.xy:length() ^ 2 < scr.z * 1.5 ^ 2
-			outline = isHovering and hoverOutline
+			overlay = isHovering and hoverWorld
 		end
 	end
 
-	if outline then outline:visible(true) end
+	if overlay then overlay:visible(true) end
 end
 
 ---------- ˚♡ Tick ♡˚ ----------
