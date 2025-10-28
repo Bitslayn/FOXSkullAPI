@@ -997,41 +997,41 @@ end
 local hoverWorld = newWorldOverlay(vec(1, 1, 1, 0.4), ":skull_4:")
 local errorWorld = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖")
 
----@param icon string?
----@return ModelPart
-local function newFlatOverlay(icon)
-	local mdp = models:newPart("newFlatOverlay", "Skull")
-		:visible(false)
+-- ---@param icon string?
+-- ---@return ModelPart
+-- local function newFlatOverlay(icon)
+-- 	local mdp = models:newPart("newFlatOverlay", "Skull")
+-- 		:visible(false)
 
-	local iconMat = matrices.mat4()
-		:translate(0, 8, -16)
-		:rotate(27, -45)
-	local tooltipMat = matrices.mat4()
-		:translate(client.getScaledWindowSize():mul(-0.5, -0.75).xy_)
-		:rotate(27, -45)
-	tooltipMat.v44 = 0
+-- 	local iconMat = matrices.mat4()
+-- 		:translate(0, 8, -16)
+-- 		:rotate(27, -45)
+-- 	local tooltipMat = matrices.mat4()
+-- 		:translate(client.getScaledWindowSize():mul(-0.5, -0.75).xy_)
+-- 		:rotate(27, -45)
+-- 	tooltipMat.v44 = 0
 
-	mdp:newText("icon")
-		:text(icon)
-		:alignment("CENTER")
-		:matrix(iconMat)
+-- 	mdp:newText("icon")
+-- 		:text(icon)
+-- 		:alignment("CENTER")
+-- 		:matrix(iconMat)
 
-	local bb = mdp
-		:newPart("bb")
-		:matrix(tooltipMat)
-	local tpvt = bb
-		:newPart("tpvt")
-	tpvt:newText("fg")
-		:light(15)
-	tpvt:newText("bg")
-		:light(15)
-		:background(true)
-		:seeThrough(true)
+-- 	local bb = mdp
+-- 		:newPart("bb")
+-- 		:matrix(tooltipMat)
+-- 	local tpvt = bb
+-- 		:newPart("tpvt")
+-- 	tpvt:newText("fg")
+-- 		:light(15)
+-- 	tpvt:newText("bg")
+-- 		:light(15)
+-- 		:background(true)
+-- 		:seeThrough(true)
 
-	return mdp
-end
+-- 	return mdp
+-- end
 
-local errorFlat = newFlatOverlay("§4✖")
+-- local errorFlat = newFlatOverlay("§4✖")
 
 
 local vanillaSkull = models:newPart("vanillaSkull", "Skull")
@@ -1065,7 +1065,7 @@ local function getViewerHeldSkull()
 	local off = viewer:getHeldItem(true)
 
 	return main.id == "minecraft:player_head" and get(main) or
-			off.id == "minecraft:player_head" and get(off) --[[@as FOXSkull.item]]
+		off.id == "minecraft:player_head" and get(off) --[[@as FOXSkull.item]]
 end
 
 function events.skull_render(delta, block, item, entity, context)
@@ -1120,20 +1120,20 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if not model then return end
 
-	if priv.error and not context:find("FIRST_PERSON") then
-		-- Line render type doesn't work in GUIs or first person held items with Sodium installed
-
-		local isGUI = context == "GUI"
-		overlay = isGUI and errorFlat or errorWorld
+	if priv.error and not (context == "OTHER" or context:find("FIRST_PERSON")) then -- Newer versions have issues with some render types
+		-- local isGUI = context == "GUI"
+		-- overlay = isGUI and errorFlat or errorWorld
+		overlay = errorWorld
 
 		local isSelected =
-			isGUI and getViewerHeldSkull() == self or
+		-- isGUI and getViewerHeldSkull() == self or
 			block and viewer:getTargetedBlock():getPos() == block:getPos() or
 			entity and viewer:getTargetedEntity() == entity
 		local tpvt = overlay.bb.tpvt:visible(isSelected)
 
 		if isSelected then
-			tpvt:pos(priv.errorOffset * (isGUI and 4 or 1), -8, 0)
+			-- tpvt:pos(priv.errorOffset * (isGUI and 4 or 1), -8, 0)
+			tpvt:pos(priv.errorOffset, -8, 0)
 			tpvt:getTask("fg") --[[@as TextTask]]
 				:text(priv.error)
 			tpvt:getTask("bg") --[[@as TextTask]]
