@@ -28,6 +28,43 @@ function assert(v, message, level)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Base64 ♡˚
+------------------------------------------------------------------------------------------------
+
+local base64 = {}
+
+--#REGION Encode
+
+---Converts the given string to base64
+---@param value string
+---@return string
+function base64.encode(value)
+	local buffer = data:createBuffer()
+	buffer:writeByteArray(value)
+	buffer:setPosition(0)
+	local encoded = buffer:readBase64()
+	buffer:close()
+	return encoded
+end
+
+--#ENDREGION
+--#REGION Decode
+
+---Converts from base64 to a readable string
+---@param value string
+---@return string
+function base64.decode(value)
+	local buffer = data:createBuffer()
+	buffer:writeBase64(value)
+	buffer:setPosition(0)
+	local decoded = buffer:readByteArray()
+	buffer:close()
+	return decoded
+end
+
+--#ENDREGION
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > JSON ♡˚
 ------------------------------------------------------------------------------------------------
 
@@ -102,6 +139,7 @@ local encodeTypes = {
 		return "Entity", avatar:getUUID()
 	end,
 
+
 	---@param v BlockState
 	BlockState = function(v)
 		return "Block", { state = v:toStateString(), pos = { v:getPos():unpack() } }
@@ -109,6 +147,23 @@ local encodeTypes = {
 	---@param v ItemStack
 	ItemStack = function(v)
 		return "Item", { stack = v:toStackString(), count = v:getCount(), damage = v:getDamage() }
+	end,
+
+
+	---@param v ModelPart
+	ModelPart = function(v)
+		local p = {}
+		repeat
+			table.insert(p, 1, v:getName())
+			v = v:getParent()
+		until not v:getParent()
+		return "Part", p
+	end,
+
+
+	---@param v Texture
+	Texture = function(v)
+		return "Texture", { name = v:getName(), raw = v:save() }
 	end,
 }
 
@@ -172,6 +227,20 @@ local decodeTypes = {
 	Item = function(v)
 		return world.newItem(v.stack, v.count, v.damage)
 	end,
+	---@param v string[]
+	---@return ModelPart
+	Part = function(v)
+		local p = models
+		for _, chld in ipairs(v) do
+			p = p[chld]
+		end
+		return p
+	end,
+	---@param v table<string, string>
+	---@return Texture
+	Texture = function(v)
+		return textures[v.name] or textures:read(v.name, v.raw)
+	end
 }
 
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
@@ -197,43 +266,6 @@ function json.decode(str)
 	end
 
 	return unpack(tbl)
-end
-
---#ENDREGION
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ Utilities > Base64 ♡˚
-------------------------------------------------------------------------------------------------
-
-local base64 = {}
-
---#REGION Encode
-
----Converts the given string to base64
----@param value string
----@return string
-function base64.encode(value)
-	local buffer = data:createBuffer()
-	buffer:writeByteArray(value)
-	buffer:setPosition(0)
-	local encoded = buffer:readBase64()
-	buffer:close()
-	return encoded
-end
-
---#ENDREGION
---#REGION Decode
-
----Converts from base64 to a readable string
----@param value string
----@return string
-function base64.decode(value)
-	local buffer = data:createBuffer()
-	buffer:writeBase64(value)
-	buffer:setPosition(0)
-	local decoded = buffer:readByteArray()
-	buffer:close()
-	return decoded
 end
 
 --#ENDREGION
