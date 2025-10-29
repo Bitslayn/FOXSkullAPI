@@ -159,12 +159,6 @@ local encodeTypes = {
 		until not v:getParent()
 		return "Part", p
 	end,
-
-
-	---@param v Texture
-	Texture = function(v)
-		return "Texture", v:getName()
-	end,
 }
 
 ---Converts the given table into a JSON string, supporting Figura's non-primitive types
@@ -236,11 +230,6 @@ local decodeTypes = {
 		end
 		return p
 	end,
-	---@param v table<string, string>
-	---@return Texture
-	Texture = function(v)
-		return textures[v.name]
-	end
 }
 
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
