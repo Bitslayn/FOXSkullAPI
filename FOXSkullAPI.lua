@@ -9,11 +9,6 @@ Github: https://github.com/Bitslayn/FOXSkullAPI
 Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 ]]
 
----Set this to true to allow skull models to be searched for and consumed automatically
----
----Consumed skulls follow the name scheme "Skull #Item Name" and apply that model when the item's name matches what's after the #
-local autoConsumeModels = true
-
 --==============================================================================================================================
 --#REGION ˚♡ Utilities ♡˚
 --==============================================================================================================================
@@ -1416,50 +1411,50 @@ end
 --#REGION ˚♡ FOXSkull > Consumer ♡˚
 ------------------------------------------------------------------------------------------------
 
----Consumes a modelpart, allowing that part to be applied to the skull of a matching name
----@param part ModelPart
----@param name string
-local function consume(part, name)
-	name = name:lower()
-	part:parentType("None"):visible(false)
+-- ---Consumes a modelpart, allowing that part to be applied to the skull of a matching name
+-- ---@param part ModelPart
+-- ---@param name string
+-- local function consume(part, name)
+-- 	name = name:lower()
+-- 	part:parentType("None"):visible(false)
 
-	table.insert(
-		skullEvents.skull_init,
-		---@param self FOXSkull.any
-		function(self)
-			if self:getName():lower():find(name) then
-				self:model(part)
-			end
-		end
-	)
-end
+-- 	table.insert(
+-- 		skullEvents.skull_init,
+-- 		---@param self FOXSkull.any
+-- 		function(self)
+-- 			if self:getName():lower():find(name) then
+-- 				self:model(part)
+-- 			end
+-- 		end
+-- 	)
+-- end
 
----Searches all children of a modelpart group
----@param part ModelPart
-local function searchModels(part)
-	for _, chld in ipairs(part:getChildren()) do
-		if chld:getParentType() == "Skull" then
-			local suffix = chld:getName():match("^[^#]*#(.*)$")
+-- ---Searches all children of a modelpart group
+-- ---@param part ModelPart
+-- local function searchModels(part)
+-- 	for _, chld in ipairs(part:getChildren()) do
+-- 		if chld:getParentType() == "Skull" then
+-- 			local suffix = chld:getName():match("^[^#]*#(.*)$")
 
-			if suffix then
-				suffix = suffix:lower()
-					:gsub("^%s*", "") -- Remove trailing whitespaces
-					:gsub("%s$", "") -- Remove leading whitespaces
+-- 			if suffix then
+-- 				suffix = suffix:lower()
+-- 					:gsub("^%s*", "") -- Remove trailing whitespaces
+-- 					:gsub("%s$", "") -- Remove leading whitespaces
 
-				if suffix == "default" then
-					defaultModel = copyModel(chld)
-				else
-					consume(chld, suffix)
-				end
-			end
-		end
-		searchModels(chld)
-	end
-end
+-- 				if suffix == "default" then
+-- 					defaultModel = copyModel(chld)
+-- 				else
+-- 					consume(chld, suffix)
+-- 				end
+-- 			end
+-- 		end
+-- 		searchModels(chld)
+-- 	end
+-- end
 
-if autoConsumeModels then
-	searchModels(models)
-end
+-- if autoConsumeModels then
+-- 	searchModels(models)
+-- end
 
 --#ENDREGION
 
