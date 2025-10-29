@@ -15,8 +15,12 @@ Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 local autoConsumeModels = true
 
 --==============================================================================================================================
---#REGION ˚♡ Utility Functions ♡˚
+--#REGION ˚♡ Utilities ♡˚
 --==============================================================================================================================
+
+------------------------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Assert ♡˚
+------------------------------------------------------------------------------------------------
 
 ---Raises an error if the value of its argument v is false (i.e., `nil` or `false`); otherwise, returns all its arguments. In case of error, `message` is the error object; when absent, it defaults to `"assertion failed!"`
 ---@generic T
@@ -27,6 +31,344 @@ local autoConsumeModels = true
 function assert(v, message, level)
 	return v or error(message or "Assertion failed!", (level or 1) + 1)
 end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > JSON ♡˚
+------------------------------------------------------------------------------------------------
+
+local json = {}
+
+---Returns if the given string is a json string
+---@param str string
+---@return boolean
+local function isJson(str)
+	local success, result = pcall(parseJson, str)
+	return success and str ~= result
+end
+
+--#REGION Encode
+
+---Converts the Figura type into a value
+---@type {[string]: fun(v: any): type: string, value: any}
+local encodeTypes = {
+	---@param v Vector2
+	Vector2 = function(v)
+		return "Vector", { v:unpack() }
+	end,
+	---@param v Vector3
+	Vector3 = function(v)
+		return "Vector", { v:unpack() }
+	end,
+	---@param v Vector4
+	Vector4 = function(v)
+		return "Vector", { v:unpack() }
+	end,
+
+
+	---@param v Matrix2
+	Matrix2 = function(v)
+		local t = {}
+		for i = 1, #v do
+			t[i] = { v[i]:unpack() }
+		end
+		return "Matrix", t
+	end,
+	---@param v Matrix3
+	Matrix3 = function(v)
+		local t = {}
+		for i = 1, #v do
+			t[i] = { v[i]:unpack() }
+		end
+		return "Matrix", t
+	end,
+	---@param v Matrix4
+	Matrix4 = function(v)
+		local t = {}
+		for i = 1, #v do
+			t[i] = { v[i]:unpack() }
+		end
+		return "Matrix", t
+	end,
+
+
+	---@param v Player
+	PlayerAPI = function(v)
+		return "Entity", v:getUUID()
+	end,
+	---@param v Entity
+	EntityAPI = function(v)
+		return "Entity", v:getUUID()
+	end,
+	---@param v LivingEntity
+	LivingEntityAPI = function(v)
+		return "Entity", v:getUUID()
+	end,
+	NullEntity = function()
+		return "Entity", avatar:getUUID()
+	end,
+
+	---@param v BlockState
+	BlockState = function(v)
+		return "Block", { state = v:toStateString(), pos = { v:getPos():unpack() } }
+	end,
+	---@param v ItemStack
+	ItemStack = function(v)
+		return "Item", { stack = v:toStackString(), count = v:getCount(), damage = v:getDamage() }
+	end,
+}
+
+---Converts the given table into a JSON string, supporting Figura's non-primitive types
+---@param value any
+---@return string
+function json.encode(value)
+	local function pack(curr)
+		local t = type(curr)
+		local packed = {}
+
+		if encodeTypes[t] then
+			local name, val = encodeTypes[t](curr)
+			packed = { type = name, value = val }
+		elseif t == "table" then
+			for k, v in pairs(curr) do
+				packed[k] = pack(v)
+			end
+		else
+			packed = curr
+		end
+
+		return packed
+	end
+
+	return toJson(pack(value))
+end
+
+--#ENDREGION
+--#REGION Decode
+
+---Converts the value into a Figura type
+---@type {[string]: fun(v: any): any}
+local decodeTypes = {
+	---@param v number[]
+	---@return Vector.any
+	Vector = function(v)
+		return vec(table.unpack(v))
+	end,
+	---@param v number[][]
+	---@return Matrix.any
+	Matrix = function(v)
+		local m = matrices["mat" .. #v]() --[[@as Matrix.any]]
+		for i = 1, #v do
+			m[i] = vec(table.unpack(v[i]))
+		end
+		return m
+	end,
+	---@param v string
+	---@return Entity
+	Entity = function(v)
+		return world.getEntity(v)
+	end,
+	---@param v table<string, any>
+	---@return BlockState
+	Block = function(v)
+		return world.newBlock(v.state, vectors.vec3(table.unpack(v.pos)))
+	end,
+	---@param v table<string, any>
+	---@return ItemStack
+	Item = function(v)
+		return world.newItem(v.stack, v.count, v.damage)
+	end,
+}
+
+---Decodes the given JSON string into a table, supporting Figura's non-primitive types
+---@param str string
+---@return table
+function json.decode(str)
+	local tbl = parseJson(str)
+
+	local function unpack(curr)
+		if type(curr) ~= "table" then return curr end
+		local unpacked = {}
+
+		if curr.type and decodeTypes[curr.type] then
+			local success, value = pcall(decodeTypes[curr.type], curr.value)
+			unpacked = success and value or nil
+		else
+			for k, v in pairs(curr) do
+				unpacked[k] = unpack(v)
+			end
+		end
+
+		return unpacked
+	end
+
+	return unpack(tbl)
+end
+
+--#ENDREGION
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Base64 ♡˚
+------------------------------------------------------------------------------------------------
+
+local base64 = {}
+
+--#REGION Encode
+
+---Converts the given string to base64
+---@param value string
+---@return string
+function base64.encode(value)
+	local buffer = data:createBuffer()
+	buffer:writeByteArray(value)
+	buffer:setPosition(0)
+	local encoded = buffer:readBase64()
+	buffer:close()
+	return encoded
+end
+
+--#ENDREGION
+--#REGION Decode
+
+---Converts from base64 to a readable string
+---@param value string
+---@return string
+function base64.decode(value)
+	local buffer = data:createBuffer()
+	buffer:writeBase64(value)
+	buffer:setPosition(0)
+	local decoded = buffer:readByteArray()
+	buffer:close()
+	return decoded
+end
+
+--#ENDREGION
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Item Generator ♡˚
+------------------------------------------------------------------------------------------------
+
+--#REGION Helper
+
+---Packs the given strings into a table of json strings
+---@param multiline boolean?
+---@param index string
+---@param ... string|string[]
+---@return string|string[]
+local function pack(multiline, index, ...)
+	local lines = {}
+
+	-- Build line sections
+
+	for k, v in pairs({ ... }) do
+		if type(v) == "table" then
+			local sections = {}
+			for k2, v2 in pairs(v) do
+				sections[k2] = isJson(v2) and parseJson(v2) or { [index] = v2 }
+			end
+			lines[k] = sections
+		else
+			lines[k] = isJson(v) and parseJson(v) or { [index] = v }
+		end
+	end
+
+	-- Format into valid NBT
+
+	local nbt
+	if multiline then
+		nbt = {}
+		for k, v in pairs(lines) do nbt[k] = toJson(v) end
+	else
+		nbt = toJson(lines)
+	end
+	return nbt
+end
+
+--#ENDREGION
+--#REGION Generator
+
+---@class FOXSkull.itemGenerator
+---@field item Minecraft.itemID
+---@field data table
+local itemGenerator = {
+	---@param self FOX.Item
+	---@package
+	__tostring = function(self)
+		local replace = {
+			"[I;" .. toJson({ client.uuidToIntArray(self.uuid) }):sub(2, math.huge),
+		}
+		return self.item .. toJson(self.data):gsub('"%%(%d+)"', function(n) return replace[tonumber(n)] end)
+	end,
+}
+---@package
+itemGenerator.__index = itemGenerator
+
+---Automagically creates a new item object, or returns the current one
+---@generic self
+---@param self self
+---@return self
+local function newItem(self)
+	if self ~= itemGenerator then return self end
+	return setmetatable({
+		item = "minecraft:air",
+		data = {
+			display = {},
+			SkullOwner = { Id = "%1" },
+		},
+	}, itemGenerator)
+end
+
+--#ENDREGION
+--#REGION Methods
+
+---Sets this item's ID
+---@param item Minecraft.itemID?
+---@return self
+function itemGenerator:setItem(item)
+	self = newItem(self)
+	self.item = item or "minecraft:air"
+	return self
+end
+
+---Sets the name of this item
+---
+---Can take multiple strings, and takes json strings. Group together strings to put them on the same line
+---@param ... string|string[]?
+---@return self
+function itemGenerator:setName(...)
+	self = newItem(self)
+	self.data.display.Name = ... and pack(false, "text", ...)
+	return self
+end
+
+---Sets the lore of this item
+---
+---Can take multiple strings, and takes json strings. Group together strings to put them on the same line
+---@param ... string|string[]?
+---@return self
+function itemGenerator:setLore(...)
+	self = newItem(self)
+	self.data.display.Lore = ... and pack(true, "text", ...)
+	return self
+end
+
+---Sets the skull owner UUID of this item, if it is a player skull
+---@param uuid string
+function itemGenerator:setUUID(uuid)
+	self = newItem(self)
+	self.uuid = uuid
+	return self
+end
+
+function itemGenerator:setTexture(...)
+	self = newItem(self)
+	self.data.SkullOwner.Properties = {}
+	self.data.SkullOwner.Properties.textures = ... and parseJson(pack(false, "Value", ...) --[[@as string]])
+	return self
+end
+
+--#ENDREGION
+
+--#ENDREGION
 
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkull ♡˚
@@ -120,163 +462,10 @@ local all = {}
 local uuids = {}
 
 ------------------------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Item Generator ♡˚
-------------------------------------------------------------------------------------------------
-
----Returns if the given string is a json string
----@param str string
----@return boolean
-local function isJson(str)
-	local success, result = pcall(parseJson, str)
-	return success and str ~= result
-end
-
----Packs the given strings into a table of json strings
----@param multiline boolean?
----@param index string
----@param ... string|string[]
----@return string|string[]
-local function pack(multiline, index, ...)
-	local lines = {}
-
-	-- Build line sections
-
-	for k, v in pairs({ ... }) do
-		if type(v) == "table" then
-			local sections = {}
-			for k2, v2 in pairs(v) do
-				sections[k2] = isJson(v2) and parseJson(v2) or { [index] = v2 }
-			end
-			lines[k] = sections
-		else
-			lines[k] = isJson(v) and parseJson(v) or { [index] = v }
-		end
-	end
-
-	-- Format into valid NBT
-
-	local nbt
-	if multiline then
-		nbt = {}
-		for k, v in pairs(lines) do nbt[k] = toJson(v) end
-	else
-		nbt = toJson(lines)
-	end
-	return nbt
-end
-
----------- ˚♡ Generator ♡˚ ----------
-
----@class FOXSkull.itemGenerator
----@field item Minecraft.itemID
----@field data table
-local itemGenerator = {
-	---@param self FOX.Item
-	---@package
-	__tostring = function(self)
-		local replace = {
-			"[I;" .. toJson({ client.uuidToIntArray(self.uuid) }):sub(2, math.huge),
-		}
-		return self.item .. toJson(self.data):gsub('"%%(%d+)"', function(n) return replace[tonumber(n)] end)
-	end,
-}
----@package
-itemGenerator.__index = itemGenerator
-
----Automagically creates a new item object, or returns the current one
----@generic self
----@param self self
----@return self
-local function newItem(self)
-	if self ~= itemGenerator then return self end
-	return setmetatable({
-		item = "minecraft:air",
-		data = {
-			display = {},
-			SkullOwner = { Id = "%1" },
-		},
-	}, itemGenerator)
-end
-
----Sets this item's ID
----@param item Minecraft.itemID?
----@return self
-function itemGenerator:setItem(item)
-	self = newItem(self)
-	self.item = item or "minecraft:air"
-	return self
-end
-
----Sets the name of this item
----
----Can take multiple strings, and takes json strings. Group together strings to put them on the same line
----@param ... string|string[]?
----@return self
-function itemGenerator:setName(...)
-	self = newItem(self)
-	self.data.display.Name = ... and pack(false, "text", ...)
-	return self
-end
-
----Sets the lore of this item
----
----Can take multiple strings, and takes json strings. Group together strings to put them on the same line
----@param ... string|string[]?
----@return self
-function itemGenerator:setLore(...)
-	self = newItem(self)
-	self.data.display.Lore = ... and pack(true, "text", ...)
-	return self
-end
-
----Sets the skull owner UUID of this item, if it is a player skull
----@param uuid string
-function itemGenerator:setUUID(uuid)
-	self = newItem(self)
-	self.uuid = uuid
-	return self
-end
-
-function itemGenerator:setTexture(...)
-	self = newItem(self)
-	self.data.SkullOwner.Properties = {}
-	self.data.SkullOwner.Properties.textures = ... and parseJson(pack(false, "Value", ...) --[[@as string]])
-	return self
-end
-
---#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Methods ♡˚
 ------------------------------------------------------------------------------------------------
 
----------- ˚♡ Base64 ♡˚ ----------
-
-local base64 = {}
-
----Converts the given string to base64
----@param value string
----@return string
-function base64.encode(value)
-	local buffer = data:createBuffer()
-	buffer:writeByteArray(value)
-	buffer:setPosition(0)
-	local encoded = buffer:readBase64()
-	buffer:close()
-	return encoded
-end
-
----Converts from base64 to a readable string
----@param value string
----@return string
-function base64.decode(value)
-	local buffer = data:createBuffer()
-	buffer:writeBase64(value)
-	buffer:setPosition(0)
-	local decoded = buffer:readByteArray()
-	buffer:close()
-	return decoded
-end
-
----------- ˚♡ Blocks ♡˚ ----------
+--#REGION Blocks
 
 local dirs = {
 	east  = vec(1, 0, 0),
@@ -337,53 +526,48 @@ function blockClass:setOnPunch(func)
 	return self
 end
 
----------- ˚♡ Model ♡˚ ----------
+--#ENDREGION
+--#REGION Model
+
+---Copies a model and turns it into a skull model
+---@param model ModelPart?
+---@return ModelPart?
+local function copyModel(model)
+	if type(model) ~= "ModelPart" then return end
+
+	return model:copy("SkullAPIModel")
+		:parentType("Skull")
+		:visible(false)
+		:moveTo(models)
+end
 
 ---Sets the model to render for this skull
+---
+---Defaults to setting "OTHER" model context
 ---@generic self
----@param model any
----@param context any
+---@param model ModelPart?
+---@param context FOXSkull.any.context?
 ---@return self
 ---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
 ---@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context?): FOXSkull.any
----@overload fun(self: FOXSkull.block, model: {[FOXSkull.block.context]: ModelPart}): FOXSkull.block
----@overload fun(self: FOXSkull.item, model: {[FOXSkull.item.context]: ModelPart}): FOXSkull.item
----@overload fun(self: FOXSkull.any, model: {[FOXSkull.any.context]: ModelPart}): FOXSkull.any
 function anyClass:setModel(model, context)
 	local priv = self[1]
 
-	if type(model) == "table" then
-		for k, v in pairs(model) do
-			priv.models[k] = models:newPart("skullModel-" .. k)
-				:parentType("Skull")
-				:visible(false)
+	context = context and string.upper(context) or "OTHER"
 
-			v:moveTo(priv.models[k])
-		end
-	else
-		context = context and string.upper(context) or "OTHER"
-
-		if priv.models[context] then
-			priv.models[context]:getParent():remove()
-		end
-
-		if model then
-			priv.models[context] = models:newPart("skullModel-" .. context)
-				:parentType("Skull")
-				:pos(-model --[[@as ModelPart]]:getPivot())
-				:visible(false)
-
-			model --[[@as ModelPart]]:copy("copy")
-				:visible(true)
-				:moveTo(priv.models[context])
-		end
+	if priv.models[context] then
+		priv.models[context]:remove()
 	end
+
+	priv.models[context] = copyModel(model)
 
 	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
 ---Sets the model to render for this skull
+---
+---Defaults to getting "OTHER" model context
 ---@generic self
 ---@param model any
 ---@param context any
@@ -391,9 +575,6 @@ end
 ---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
 ---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
 ---@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context?): FOXSkull.any
----@overload fun(self: FOXSkull.block, model: {[FOXSkull.block.context]: ModelPart}): FOXSkull.block
----@overload fun(self: FOXSkull.item, model: {[FOXSkull.item.context]: ModelPart}): FOXSkull.item
----@overload fun(self: FOXSkull.any, model: {[FOXSkull.any.context]: ModelPart}): FOXSkull.any
 function anyClass:model(model, context)
 	return self:setModel(model, context)
 end
@@ -409,12 +590,13 @@ function anyClass:getModel(context)
 	return self[1].models[context]
 end
 
----------- ˚♡ Data ♡˚ ----------
+--#ENDREGION
+--#REGION Data
 
----@param json string
+---@param str string
 ---@return string
-local function parseName(json)
-	local name = parseJson(json)
+local function parseName(str)
+	local name = parseJson(str)
 	return name.text or name
 end
 
@@ -517,7 +699,8 @@ function anyClass:getData(i, j)
 	return textures and parseTextures(textures, i, j) or ""
 end
 
----------- ˚♡ Visibility ♡˚ ----------
+--#ENDREGION
+--#REGION Visibility
 
 ---Sets this skull's visibility
 ---@generic self
@@ -545,7 +728,8 @@ function anyClass:getVisible()
 	return self[1].visible
 end
 
----------- ˚♡ Functions ♡˚ ----------
+--#ENDREGION
+--#REGION Functions
 
 ---Sets the function to run when this skull renders
 ---@overload fun(self: FOXSkull.block, func: FOXSkull.block.render): FOXSkull.block
@@ -563,7 +747,8 @@ function anyClass:setTick(func)
 	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
----------- ˚♡ UUID ♡˚ ----------
+--#ENDREGION
+--#REGION UUID
 
 ---Gets this skull's uuid
 ---@return string
@@ -572,7 +757,8 @@ function anyClass:getUUID()
 	return self[1].uuid
 end
 
----------- ˚♡ Vars ♡˚ ----------
+--#ENDREGION
+--#REGION Vars
 
 ---Sets a variable on this skull
 ---
@@ -609,7 +795,8 @@ function anyClass:getVariable(key)
 	return not key and self[1].vars or self[1].vars[key]
 end
 
----------- ˚♡ Item Generator ♡˚ ----------
+--#ENDREGION
+--#REGION Item
 
 ---Gets this skull as an ItemStack
 ---
@@ -652,9 +839,20 @@ end
 ---@param damage number?
 ---@return self
 function anyClass:giveItem(count, damage)
-	host:setSlot(findOpenSlot(), self --[[@as FOXSkull.any]]:getItemStack(count, damage))
+	if host:isHost() and player:getGamemode() == "CREATIVE" then
+		host:setSlot(findOpenSlot(), self --[[@as FOXSkull.any]]:getItemStack(count, damage))
+
+		sounds["minecraft:entity.item.pickup"]
+			:pos(player:getPos())
+			:volume(0.5)
+			:pitch(2)
+			:play()
+	end
+
 	return self
 end
+
+--#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Events ♡˚
@@ -691,8 +889,10 @@ local function try(self, f, ...)
 
 	result = "§c[error] §f" .. avatar:getEntityName() .. "§c : " .. tostring(result)
 		:gsub("\9", "  ")
-	if not result:find("^[^\n]*FOXSkullAPI[^\n]*") then -- Truncate strace if FOXSkullAPI isn't at top of traceback
-		result = result:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?")
+	if not result:find("^[^\n]*FOXSkullAPI[^\n]*") then    -- Truncate strace if FOXSkullAPI isn't at top of traceback
+		result = result
+			:gsub("[^\n]*\n[^\n]*'pcall'.-$", "  [SkullAPI]: in ?") -- Truncate line above pcall
+			:gsub("[^\n]*'pcall'.-$", "  [SkullAPI]: in ?") -- Truncate pcall (edge case)
 	end
 
 	local priv = self[1]
@@ -725,48 +925,10 @@ local function init(self, state)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Consumer ♡˚
-------------------------------------------------------------------------------------------------
-
----Consumes a modelpart, allowing that part to be applied to the skull of a matching name
----@param part ModelPart
----@param name string
-local function consume(part, name)
-	name = name:lower()
-	part:parentType("None"):visible(false)
-
-	table.insert(
-		skullEvents.skull_init,
-		---@param self FOXSkull.any
-		function(self)
-			if self:getName():lower():find(name) then
-				self:model(part)
-			end
-		end
-	)
-end
-
----Searches all children of a modelpart group
----@param part ModelPart
-local function searchModels(part)
-	for _, chld in ipairs(part:getChildren()) do
-		if chld:getParentType() == "Skull" then
-			local suffix = chld:getName():match("^[^#]*#(.*)$")
-			if suffix then consume(chld, suffix) end
-		end
-		searchModels(chld)
-	end
-end
-
-if autoConsumeModels then
-	searchModels(models)
-end
-
---#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Accessor ♡˚
 ------------------------------------------------------------------------------------------------
 
----------- ˚♡ Get ♡˚ ----------
+--#REGION Get
 
 ---@type fun(key: FOXSkull.key.genericKey, entity: Entity?): FOXSkull.key.internalID
 local idSwitch = {
@@ -808,9 +970,12 @@ local function get(key, entity)
 	return all[getID(key, entity) or key]
 end
 
----------- ˚♡ New ♡˚ ----------
+--#ENDREGION
+--#REGION New
 
-local whitelist = {
+---Stores keys which can be changed inside mutable skulls
+---@type {[any]: true}
+local keyWhitelist = {
 	block = true,
 	item = true,
 	entity = true,
@@ -821,8 +986,12 @@ local whitelist = {
 	[1] = true,
 }
 
+---Function that locks a mutable skull's table
+---@param s FOXSkull.any
+---@param k any
+---@param v any
 local function lock(s, k, v)
-	assert(whitelist[k], 'Cannot assign value to key "' .. k .. '"', 2)
+	assert(keyWhitelist[k], 'Cannot assign value to key "' .. k .. '"', 2)
 	rawset(s, k, v)
 end
 
@@ -891,7 +1060,8 @@ local function new(key, entity)
 	return self
 end
 
----------- ˚♡ Remove ♡˚ ----------
+--#ENDREGION
+--#REGION Remove
 
 ---Removes a skull by its generic key
 ---
@@ -913,15 +1083,15 @@ local function remove(key, entity)
 	end
 end
 
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Render ♡˚
-------------------------------------------------------------------------------------------------
+--#ENDREGION
 
-local viewer = client.getViewer()
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Built-in Models ♡˚
+------------------------------------------------------------------------------------------------
 
 local blank = textures:newTexture("blank", 1, 1)
 
----------- ˚♡ Special Models ♡˚ ----------
+--#REGION Overlays
 
 ---@param color Vector3|Vector4?
 ---@param icon string?
@@ -1033,6 +1203,8 @@ local errorWorld = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖")
 
 -- local errorFlat = newFlatOverlay("§4✖")
 
+--#ENDREGION
+--#REGION Vanilla
 
 local vanillaSkull = models:newPart("vanillaSkull", "Skull")
 	:visible(false)
@@ -1044,16 +1216,28 @@ local skullItem = vanillaSkull:newItem("Skull")
 
 pcall(skullItem.item, skullItem, "minecraft:player_head" .. toJson { SkullOwner = avatar:getEntityName() })
 
+--#ENDREGION
+--#REGION Invisible
 
 local invisibleSkull = models:newPart("invisibleSkull", "Skull")
 	:visible(false)
 invisibleSkull:newSprite("Sprite")
 	:setTexture(blank)
 
----------- ˚♡ Render ♡˚ ----------
+--#ENDREGION
 
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Render ♡˚
+------------------------------------------------------------------------------------------------
+
+--#REGION Render
+
+local viewer = world.getPlayers()[client.getViewer():getName()]
+
+---@type ModelPart
+local defaultModel
 ---@type ModelPart, ModelPart
-local model, overlay
+local currentModel, overlay
 ---@type number
 local sharedDelta
 
@@ -1101,16 +1285,18 @@ function events.skull_render(delta, block, item, entity, context)
 
 	-- Render this skull's model
 
-	if model then model:visible(false) end
-	model = nil
+	if currentModel then currentModel:visible(false) end
+	currentModel = nil
 
 	if priv.error then
-		model = vanillaSkull
+		currentModel = vanillaSkull
 	elseif priv.models[context] or priv.models.OTHER then
-		model = priv.visible and (priv.models[context] or priv.models.OTHER) or invisibleSkull
+		currentModel = priv.visible and (priv.models[context] or priv.models.OTHER) or invisibleSkull
+	else
+		currentModel = defaultModel
 	end
 
-	if model then model:visible(true) end
+	if currentModel then currentModel:visible(true) end
 
 
 	-- Render this skull's overlay
@@ -1118,7 +1304,7 @@ function events.skull_render(delta, block, item, entity, context)
 	if overlay then overlay:visible(false) end
 	overlay = nil
 
-	if not model then return end
+	if not currentModel then return end
 
 	if priv.error and not (context == "OTHER" or context:find("FIRST_PERSON")) then -- Newer versions have issues with some render types
 		-- local isGUI = context == "GUI"
@@ -1127,6 +1313,7 @@ function events.skull_render(delta, block, item, entity, context)
 
 		local isSelected =
 		-- isGUI and getViewerHeldSkull() == self or
+			entity == viewer and not renderer:isFirstPerson() or
 			block and viewer:getTargetedBlock():getPos() == block:getPos() or
 			entity and viewer:getTargetedEntity() == entity
 		local tpvt = overlay.bb.tpvt:visible(isSelected)
@@ -1155,7 +1342,8 @@ function events.skull_render(delta, block, item, entity, context)
 	if overlay then overlay:visible(true) end
 end
 
----------- ˚♡ Tick ♡˚ ----------
+--#ENDREGION
+--#REGION Tick
 
 ---@type Player[]
 local cachedPunches
@@ -1198,7 +1386,8 @@ function events.world_tick()
 	end
 end
 
----------- ˚♡ Flush ♡˚ ----------
+--#ENDREGION
+--#REGION Flush
 
 ---@type FOXSkull.key.internalID
 local flushKey
@@ -1223,6 +1412,57 @@ end
 
 --#ENDREGION
 
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Consumer ♡˚
+------------------------------------------------------------------------------------------------
+
+---Consumes a modelpart, allowing that part to be applied to the skull of a matching name
+---@param part ModelPart
+---@param name string
+local function consume(part, name)
+	name = name:lower()
+	part:parentType("None"):visible(false)
+
+	table.insert(
+		skullEvents.skull_init,
+		---@param self FOXSkull.any
+		function(self)
+			if self:getName():lower():find(name) then
+				self:model(part)
+			end
+		end
+	)
+end
+
+---Searches all children of a modelpart group
+---@param part ModelPart
+local function searchModels(part)
+	for _, chld in ipairs(part:getChildren()) do
+		if chld:getParentType() == "Skull" then
+			local suffix = chld:getName():match("^[^#]*#(.*)$")
+
+			if suffix then
+				suffix = suffix:lower()
+					:gsub("^%s*", "") -- Remove trailing whitespaces
+					:gsub("%s$", "") -- Remove leading whitespaces
+
+				if suffix == "default" then
+					defaultModel = copyModel(chld)
+				else
+					consume(chld, suffix)
+				end
+			end
+		end
+		searchModels(chld)
+	end
+end
+
+if autoConsumeModels then
+	searchModels(models)
+end
+
+--#ENDREGION
+
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkulls ♡˚
 --==============================================================================================================================
@@ -1235,6 +1475,7 @@ end
 ---@field item_deinit FOXSkullAPI.Events.item
 ---@field skull_deinit FOXSkullAPI.Events.any
 ---@field newSkull fun(name: string?, lore: string?): FOXSkull.any
+---@field setDefaultModel fun(model: ModelPart?)
 ---@field protected [FOXSkull.key.uuid] FOXSkull.any?
 ---@field protected [BlockState] FOXSkull.block?
 ---@field protected [ItemStack] FOXSkull.item?
@@ -1254,6 +1495,16 @@ function skulls.newSkull(name, lore)
 		:setLore(lore)
 
 	return self
+end
+
+---Sets the ModelPart to use as the default for skulls
+---@param model ModelPart?
+function skulls.setDefaultModel(model)
+	if defaultModel then
+		defaultModel:remove()
+	end
+
+	defaultModel = copyModel(model)
 end
 
 local meta = {
