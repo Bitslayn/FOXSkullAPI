@@ -804,10 +804,7 @@ end
 ---@nodiscard
 function anyClass:getItemStack(count, damage)
 	local priv = self[1]
-
-	priv.generatedItem
-		:setTexture(base64.encode(toJson(priv.vars)))
-
+	priv.generatedItem:setTexture(base64.encode(json.encode(priv.vars)))
 	return world.newItem(tostring(priv.generatedItem), count, damage)
 end
 
@@ -1040,7 +1037,7 @@ local function new(key, entity)
 	}
 
 	local data = self:getData()
-	priv.vars = isJson(data) and parseJson(data) or {}
+	priv.vars = isJson(data) and json.decode(data) or {}
 
 	self[1] = priv
 
