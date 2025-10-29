@@ -214,7 +214,7 @@ local decodeTypes = {
 	---@param v table<string, any>
 	---@return BlockState
 	Block = function(v)
-		return world.newBlock(v.state, vectors.vec3(table.unpack(v.pos)))
+		return world.newBlock(v.state, v.pos and vectors.vec3(table.unpack(v.pos)))
 	end,
 	---@param v table<string, any>
 	---@return ItemStack
