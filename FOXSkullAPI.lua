@@ -163,7 +163,7 @@ local encodeTypes = {
 
 	---@param v Texture
 	Texture = function(v)
-		return "Texture", { name = v:getName(), raw = v:save() }
+		return "Texture", v:getName()
 	end,
 }
 
@@ -239,7 +239,7 @@ local decodeTypes = {
 	---@param v table<string, string>
 	---@return Texture
 	Texture = function(v)
-		return textures[v.name] or textures:read(v.name, v.raw)
+		return textures[v.name]
 	end
 }
 
