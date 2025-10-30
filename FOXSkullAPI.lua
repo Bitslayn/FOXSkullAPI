@@ -37,14 +37,14 @@ local pathJson = toJson(listFiles(nil, true))
 ---@param pattern string
 ---@return string?
 local function findScript(pattern)
-    local formattedPattern = pattern
-        :gsub('"', '\\"')     -- Escape all quotation marks
-        :gsub("^%^", '%%f[^"]') -- Replace start of pattern ^ with "
-        :gsub("%$$", '%%f["]') -- Replace end of pattern $ with "
-        :gsub('^', '[^"]*') -- Pad start of pattern to "
-        :gsub('$', '[^"]*') -- Pad end of pattern to "
+	local formattedPattern = pattern
+		:gsub('"', '\\"') -- Escape all quotation marks
+		:gsub("^%^", '%%f[^"]') -- Replace start of pattern ^ with "
+		:gsub("%$$", '%%f["]') -- Replace end of pattern $ with "
+		:gsub("^", '[^"]*') -- Pad start of pattern to "
+		:gsub("$", '[^"]*') -- Pad end of pattern to "
 
-    return pathJson:match(formattedPattern)
+	return pathJson:match(formattedPattern)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -404,7 +404,43 @@ end
 
 --#ENDREGION
 
---#ENDREGION
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Replace ModelParts ♡˚
+------------------------------------------------------------------------------------------------
+
+---Copies a model and turns it into a skull model
+---@param model ModelPart?
+---@return ModelPart?
+local function copyModel(model)
+	if type(model) ~= "ModelPart" then return end
+
+	local hasTasks = next(model:getTask())
+
+	local copy = model:copy("SkullAPIModel")
+		:parentType("Skull")
+		:visible(false)
+		:moveTo(models)
+
+	assert(not hasTasks and true or next(copy:getTask()), "Failed to copy RenderTask! Are you using 0.1.6?")
+
+	return copy
+end
+
+---Replaces the model of the provided table with a new model, removing the old one
+---@param tbl FOXSkull.any.models
+---@param context FOXSkull.any.context?
+---@param model ModelPart?
+---@param copy boolean?
+local function replaceModel(tbl, context, model, copy)
+	context = context and string.upper(context) or "OTHER"
+	copy = copy == nil and true or copy
+
+	if tbl[context] then
+		tbl[context]:remove()
+	end
+
+	tbl[context] = copy and copyModel(model) or model
+end
 
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkull ♡˚
@@ -413,9 +449,11 @@ end
 ---@class FOXSkull
 local skull = {}
 
+---@alias FOXSkull.any.models {[FOXSkull.any.context]: ModelPart}
+
 ---Internal variables not to be accessed outside of developing FOXSkullAPI!
 ---@class FOXSkull.any.private
----@field models {[FOXSkull.any.context]: ModelPart}
+---@field models FOXSkull.any.models
 ---@field timestamp number
 ---@field visible boolean?
 ---@field uuid string
@@ -565,54 +603,32 @@ end
 --#ENDREGION
 --#REGION Model
 
----Copies a model and turns it into a skull model
----@param model ModelPart?
----@return ModelPart?
-local function copyModel(model)
-	if type(model) ~= "ModelPart" then return end
-
-	return model:copy("SkullAPIModel")
-		:parentType("Skull")
-		:visible(false)
-		:moveTo(models)
-end
-
 ---Sets the model to render for this skull
----
----Defaults to setting "OTHER" model context
 ---@generic self
----@param model ModelPart?
----@param context FOXSkull.any.context?
+---@param model ModelPart? The modelpart to copy
+---@param context FOXSkull.any.context? Defaults to "OTHER". Sets which render context this model is for
+---@param copy boolean? Defaults to true. If the modelpart should be copied or injested
 ---@return self
----@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
----@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
----@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context?): FOXSkull.any
-function anyClass:setModel(model, context)
-	local priv = self[1]
-
-	context = context and string.upper(context) or "OTHER"
-
-	if priv.models[context] then
-		priv.models[context]:remove()
-	end
-
-	priv.models[context] = copyModel(model)
-
+---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?, copy: boolean?): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?, copy: boolean?): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context?, copy: boolean?): FOXSkull.any
+function anyClass:setModel(model, context, copy)
+	replaceModel(self[1].models, context, model, copy)
 	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
 ---Sets the model to render for this skull
----
----Defaults to getting "OTHER" model context
 ---@generic self
----@param model any
----@param context any
+---@param model ModelPart? The modelpart to copy
+---@param context FOXSkull.any.context? Defaults to "OTHER". Sets which render context this model is for
+---@param copy boolean? Defaults to true. If the modelpart should be copied or injested
 ---@return self
----@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?): FOXSkull.block
----@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?): FOXSkull.item
----@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context?): FOXSkull.any
-function anyClass:model(model, context)
-	return self:setModel(model, context)
+---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context?, copy: boolean?): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context?, copy: boolean?): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context?, copy: boolean?): FOXSkull.any
+function anyClass:model(model, context, copy)
+	replaceModel(self[1].models, context, model, copy)
+	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
 ---Gets the model set to render for this skull
@@ -1267,8 +1283,8 @@ invisibleSkull:newSprite("Sprite")
 
 local viewer = world.getPlayers()[client.getViewer():getName()]
 
----@type ModelPart
-local defaultModel
+---@type FOXSkull.any.models
+local defaultModels = {}
 ---@type ModelPart, ModelPart
 local currentModel, overlay
 ---@type number
@@ -1326,7 +1342,7 @@ function events.skull_render(delta, block, item, entity, context)
 	elseif priv.models[context] or priv.models.OTHER then
 		currentModel = priv.visible and (priv.models[context] or priv.models.OTHER) or invisibleSkull
 	else
-		currentModel = defaultModel
+		currentModel = defaultModels[context] or defaultModels.OTHER
 	end
 
 	if currentModel then currentModel:visible(true) end
@@ -1508,7 +1524,7 @@ end
 ---@field item_deinit FOXSkullAPI.Events.item
 ---@field skull_deinit FOXSkullAPI.Events.any
 ---@field newSkull fun(name: string?, lore: string?): FOXSkull.any
----@field setDefaultModel fun(model: ModelPart?)
+---@field setDefaultModel fun(model: ModelPart?, context: FOXSkull.any.context?, copy: boolean?)
 ---@field protected [FOXSkull.key.uuid] FOXSkull.any?
 ---@field protected [BlockState] FOXSkull.block?
 ---@field protected [ItemStack] FOXSkull.item?
@@ -1532,12 +1548,10 @@ end
 
 ---Sets the ModelPart to use as the default for skulls
 ---@param model ModelPart?
-function skulls.setDefaultModel(model)
-	if defaultModel then
-		defaultModel:remove()
-	end
-
-	defaultModel = copyModel(model)
+---@param context FOXSkull.any.context?
+---@param copy boolean?
+function skulls.setDefaultModel(model, context, copy)
+	replaceModel(defaultModels, context, model, copy)
 end
 
 local meta = {
