@@ -28,6 +28,26 @@ function assert(v, message, level)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Find Script ♡˚
+------------------------------------------------------------------------------------------------
+
+local pathJson = toJson(listFiles(nil, true))
+
+---Returns the script path that matches the given pattern
+---@param pattern string
+---@return string?
+local function findScript(pattern)
+    local formattedPattern = pattern
+        :gsub('"', '\\"')     -- Escape all quotation marks
+        :gsub("^%^", '%%f[^"]') -- Replace start of pattern ^ with "
+        :gsub("%$$", '%%f["]') -- Replace end of pattern $ with "
+        :gsub('^', '[^"]*') -- Pad start of pattern to "
+        :gsub('$', '[^"]*') -- Pad end of pattern to "
+
+    return pathJson:match(formattedPattern)
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Base64 ♡˚
 ------------------------------------------------------------------------------------------------
 
