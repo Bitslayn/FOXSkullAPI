@@ -1467,7 +1467,7 @@ function events.tick()
 end
 
 function events.world_tick()
-	if not player:isLoaded() then return end
+	if player:isLoaded() then return end
 	tick()
 end
 
