@@ -326,7 +326,7 @@ end
 ---@field item Minecraft.itemID
 ---@field data table
 local itemGenerator = {
-	---@param self FOX.Item
+	---@param self FOXSkull.itemGenerator
 	---@package
 	__tostring = function(self)
 		local replace = {
