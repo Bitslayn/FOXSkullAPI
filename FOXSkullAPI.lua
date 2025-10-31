@@ -408,6 +408,17 @@ end
 --#REGION ˚♡ Utilities > Replace ModelParts ♡˚
 ------------------------------------------------------------------------------------------------
 
+---Copies the tasks from the source model to the destination model
+---
+---This is a backport of a built-in 0.1.6 feature
+---@param source ModelPart
+---@param dest ModelPart
+local function copyTasks(source, dest)
+	for _, task in pairs(source:getTask()) do
+		dest:addTask(task)
+	end
+end
+
 ---Copies a model and turns it into a skull model
 ---@param model ModelPart?
 ---@return ModelPart?
@@ -421,7 +432,9 @@ local function copyModel(model)
 		:visible(false)
 		:moveTo(models)
 
-	assert(not hasTasks and true or next(copy:getTask()), "Failed to copy RenderTask! Are you using 0.1.6?")
+	if hasTasks and not next(copy:getTask()) then
+		copyTasks(model, copy)
+	end
 
 	return copy
 end
