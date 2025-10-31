@@ -1,4 +1,4 @@
-bakedItem:texture(texture, u, v, width, height, scale) -- Sets the texture of this item
+bakedItem:texture(texture, u, v, width, height) -- Sets the texture of this item
 bakedItem:applyPose(pose) -- Applies a preset pose for all display modes
 bakedItem:rot(mode, rotation)
 bakedItem:pos(mode, position)
