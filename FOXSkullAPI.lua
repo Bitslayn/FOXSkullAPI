@@ -1144,17 +1144,18 @@ local blank = textures:newTexture("blank", 1, 1)
 
 ---@param color Vector3|Vector4?
 ---@param icon string?
+---@param depth number?
 ---@return ModelPart
-local function newWorldOverlay(color, icon)
+local function newWorldOverlay(color, icon, depth)
 	local mdp = models:newPart("newWorldOverlay", "Skull")
 		:visible(false)
 
-	local outlineMat = matrices.mat4() * 0.5
-	outlineMat.c4 = vec(0, 0.25, 0, 0.0625)
-	local iconMat = matrices.mat4() * 0.03125
-	iconMat.c4 = vec(0, 0, 0, 0.0625)
-	local tooltipMat = matrices.mat4() * (0.0625 / 4)
-	tooltipMat.c4 = vec(0, 0, 0, 0.0625)
+	local outlineMat = matrices.mat4() * (0.5 * (16 / depth))
+	outlineMat.c4 = vec(0, (0.25 * (16 / depth)), 0, 1 / depth)
+	local iconMat = matrices.mat4() * (1 / (depth * 2))
+	iconMat.c4 = vec(0, 0, 0, 1 / depth)
+	local tooltipMat = matrices.mat4() * (1 / (depth * 4))
+	tooltipMat.c4 = vec(0, 0, 0, 1 / depth)
 
 	local bb = mdp
 		:newPart("bb", "Camera")
@@ -1213,8 +1214,9 @@ local function newWorldOverlay(color, icon)
 	return mdp
 end
 
-local hoverWorld = newWorldOverlay(vec(1, 1, 1, 0.4), ":skull_4:")
-local errorWorld = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖")
+local hoverOverlay = newWorldOverlay(vec(1, 1, 1, 0.4), ":skull_4:", 16)
+local silentErrorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 1.5)
+local errorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 16)
 
 -- ---@param icon string?
 -- ---@return ModelPart
@@ -1290,8 +1292,6 @@ local currentModel, overlay
 ---@type number
 local sharedDelta
 
-local flipHover = client.compareVersions(client.getVersion(), "1.21") ~= -1
-
 ---@return FOXSkull.item?
 local function getViewerHeldSkull()
 	local main = viewer:getHeldItem()
@@ -1299,6 +1299,26 @@ local function getViewerHeldSkull()
 
 	return main.id == "minecraft:player_head" and get(main) or
 		off.id == "minecraft:player_head" and get(off) --[[@as FOXSkull.item]]
+end
+
+local flipFacing = client.compareVersions(client.getVersion(), "1.21") ~= -1
+
+local function getViewerFacingSkull(block)
+	local scr = vectors.toCameraSpace(block:getPos() + 0.5)
+
+	if flipFacing then
+		scr:mul(-1, 1, -1)
+	end
+
+	return scr.xy:length() ^ 2 < scr.z * 1.5 ^ 2
+end
+
+local function getViewerSelectingSkull(block, entity)
+	return
+	-- isGUI and getViewerHeldSkull() == self or
+		entity == viewer and not renderer:isFirstPerson() or
+		block and viewer:getTargetedBlock():getPos() == block:getPos() or
+		entity and viewer:getTargetedEntity() == entity
 end
 
 function events.skull_render(delta, block, item, entity, context)
@@ -1355,16 +1375,15 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if not currentModel then return end
 
+	local holdingSkull = getViewerHeldSkull()
+	local facingSkull = block and getViewerFacingSkull(block)
+
 	if priv.error and not (context == "OTHER" or context:find("FIRST_PERSON")) then -- Newer versions have issues with some render types
 		-- local isGUI = context == "GUI"
 		-- overlay = isGUI and errorFlat or errorWorld
-		overlay = errorWorld
+		overlay = (holdingSkull and facingSkull) and errorOverlay or silentErrorOverlay
 
-		local isSelected =
-		-- isGUI and getViewerHeldSkull() == self or
-			entity == viewer and not renderer:isFirstPerson() or
-			block and viewer:getTargetedBlock():getPos() == block:getPos() or
-			entity and viewer:getTargetedEntity() == entity
+		local isSelected = getViewerSelectingSkull(block, entity)
 		local tpvt = overlay.bb.tpvt:visible(isSelected)
 
 		if isSelected then
@@ -1375,17 +1394,8 @@ function events.skull_render(delta, block, item, entity, context)
 			tpvt:getTask("bg") --[[@as TextTask]]
 				:text(priv.error)
 		end
-	elseif block then
-		if getViewerHeldSkull() then
-			local scr = vectors.toCameraSpace(block:getPos() + 0.5)
-
-			if flipHover then
-				scr:mul(-1, 1, -1)
-			end
-
-			local isHovering = scr.xy:length() ^ 2 < scr.z * 1.5 ^ 2
-			overlay = isHovering and hoverWorld
-		end
+	elseif holdingSkull and facingSkull then
+		overlay = hoverOverlay
 	end
 
 	if overlay then overlay:visible(true) end
