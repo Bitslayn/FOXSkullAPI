@@ -1298,22 +1298,6 @@ invisibleSkull:newSprite("Sprite")
 
 local viewer = world.getPlayers()[client.getViewer():getName()]
 
----@type FOXSkull.any.models
-local defaultModels = {}
----@type ModelPart, ModelPart
-local currentModel, overlay
----@type number
-local sharedDelta
-
----@return FOXSkull.item?
-local function getViewerHeldSkull()
-	local main = viewer:getHeldItem()
-	local off = viewer:getHeldItem(true)
-
-	return main.id == "minecraft:player_head" and get(main) or
-		off.id == "minecraft:player_head" and get(off) --[[@as FOXSkull.item]]
-end
-
 local flipFacing = client.compareVersions(client.getVersion(), "1.21") ~= -1
 
 local function getViewerFacingSkull(block)
@@ -1333,6 +1317,16 @@ local function getViewerSelectingSkull(block, entity)
 		block and viewer:getTargetedBlock():getPos() == block:getPos() or
 		entity and viewer:getTargetedEntity() == entity
 end
+
+---@type FOXSkull.any.models
+local defaultModels = {}
+---@type ModelPart, ModelPart
+local currentModel, overlay
+---@type number
+local sharedDelta
+
+---@type FOXSkull.any
+local heldSkull
 
 function events.skull_render(delta, block, item, entity, context)
 	-- Update vars
@@ -1387,14 +1381,13 @@ function events.skull_render(delta, block, item, entity, context)
 	overlay = nil
 
 	if not currentModel then return end
-
-	local holdingSkull = getViewerHeldSkull()
-	local facingSkull = block and getViewerFacingSkull(block)
+	
+	local facingSkull = heldSkull and block and getViewerFacingSkull(block)
 
 	if priv.error and not (context == "OTHER" or context:find("FIRST_PERSON")) then -- Newer versions have issues with some render types
 		-- local isGUI = context == "GUI"
 		-- overlay = isGUI and errorFlat or errorWorld
-		overlay = (holdingSkull and facingSkull) and errorOverlay or silentErrorOverlay
+		overlay = facingSkull and errorOverlay or silentErrorOverlay
 
 		local isSelected = getViewerSelectingSkull(block, entity)
 		local tpvt = overlay.bb.tpvt:visible(isSelected)
@@ -1407,7 +1400,7 @@ function events.skull_render(delta, block, item, entity, context)
 			tpvt:getTask("bg") --[[@as TextTask]]
 				:text(priv.error)
 		end
-	elseif holdingSkull and facingSkull then
+	elseif facingSkull then
 		overlay = hoverOverlay
 	end
 
@@ -1435,8 +1428,19 @@ local function findPuncher(self)
 	end
 end
 
-function events.world_tick()
+---@return FOXSkull.item?
+local function getViewerHeldSkull()
+	local main = viewer:getHeldItem()
+	local off = viewer:getHeldItem(true)
+
+	return main.id == "minecraft:player_head" and get(main) or
+		off.id == "minecraft:player_head" and get(off) --[[@as FOXSkull.item]]
+end
+
+local function tick()
 	cachedPunches = nil
+
+	heldSkull = getViewerHeldSkull()
 
 	for _, self in pairs(all) do
 		local priv = self[1]
@@ -1456,6 +1460,15 @@ function events.world_tick()
 
 		::continue::
 	end
+end
+
+function events.tick()
+	tick()
+end
+
+function events.world_tick()
+	if not player:isLoaded() then return end
+	tick()
 end
 
 --#ENDREGION

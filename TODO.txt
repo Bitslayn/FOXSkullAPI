@@ -6,7 +6,6 @@ bakedItem:scale(mode, scale)
 
 -- Make bakery and baked item model injestion
 -- Add modes helper
--- Cache if the skull is held
 -- Make variables store and load from multiple textures
 -- Add functions for getting max bytes and bytes used for skulls
 -- Asserts everywhere
