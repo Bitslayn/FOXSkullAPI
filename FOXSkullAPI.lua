@@ -405,7 +405,7 @@ end
 --#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ Utilities > Replace ModelParts ♡˚
+--#REGION ˚♡ Utilities > ModelPart Handler ♡˚
 ------------------------------------------------------------------------------------------------
 
 ---Copies the tasks from the source model to the destination model
@@ -440,19 +440,34 @@ local function copyModel(model)
 end
 
 ---Replaces the model of the provided table with a new model, removing the old one
----@param tbl FOXSkull.any.models
+---@param models FOXSkull.any.models
 ---@param context FOXSkull.any.context?
----@param model ModelPart?
+---@param model ModelPart|ModelPart[]?
 ---@param copy boolean?
-local function replaceModel(tbl, context, model, copy)
-	context = context and string.upper(context) or "OTHER"
+local function replaceModel(models, context, model, copy)
 	copy = copy == nil and true or copy
 
-	if tbl[context] then
-		tbl[context]:remove()
+	local function setModel(ctx, mdp)
+		ctx = ctx and string.upper(ctx) or "OTHER"
+
+		if models[ctx] then
+			models[ctx]:remove()
+		end
+
+		models[ctx] = copy and copyModel(mdp) or mdp
 	end
 
-	tbl[context] = copy and copyModel(model) or model
+	if type(model) == "table" then
+		if context then
+			setModel(context, model[context])
+		else
+			for ctx, mdp in pairs(model) do
+				setModel(ctx, mdp)
+			end
+		end
+	else
+		setModel(context, model)
+	end
 end
 
 --#ENDREGION --=================================================================================================================
@@ -1381,7 +1396,7 @@ function events.skull_render(delta, block, item, entity, context)
 	overlay = nil
 
 	if not currentModel then return end
-	
+
 	local facingSkull = heldSkull and block and getViewerFacingSkull(block)
 
 	if priv.error and not (context == "OTHER" or context:find("FIRST_PERSON")) then -- Newer versions have issues with some render types
