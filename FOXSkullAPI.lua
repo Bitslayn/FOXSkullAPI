@@ -1416,7 +1416,6 @@ function events.skull_render(delta, block, item, entity, context)
 		local tpvt = overlay.bb.tpvt:visible(isSelected)
 
 		if isSelected then
-			-- tpvt:pos(priv.errorOffset * (isGUI and 4 or 1), -8, 0)
 			tpvt:pos(priv.errorOffset, -8, 0)
 			tpvt:getTask("fg") --[[@as TextTask]]
 				:text(priv.error)
