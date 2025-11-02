@@ -53,6 +53,10 @@ end
 
 local base64 = {}
 
+local function isBase64(str)
+	return type(str) == "string" and #str % 4 == 0 and str:match("^[A-Za-z0-9+/]+=*$") == str
+end
+
 --#REGION Encode
 
 ---Converts the given string to base64
@@ -280,13 +284,39 @@ end
 --#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Split Strings ♡˚
+------------------------------------------------------------------------------------------------
+
+---Splits the given string at `i` and returns two substrings
+---@param s string
+---@param i integer
+---@return string, string
+local function split(s, i)
+	return s:sub(1, i), s:sub(i + 1)
+end
+
+---Splits the given string at every `i` and returns the substrings
+---@param s string
+---@param i integer
+---@return string ...
+local function gsplit(s, i)
+	local t = {}
+	local a, b = s, s
+	repeat
+		b, a = split(a, i)
+		table.insert(t, b)
+	until a == ""
+	return table.unpack(t)
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Item Generator ♡˚
 ------------------------------------------------------------------------------------------------
 
 --#REGION Helper
 
 ---Packs the given strings into a table of json strings
----@param multiline boolean?
+---@param multiline boolean
 ---@param index string
 ---@param ... string|string[]
 ---@return string|string[]
@@ -330,9 +360,9 @@ local itemGenerator = {
 	---@package
 	__tostring = function(self)
 		local replace = {
-			"[I;" .. toJson({ client.uuidToIntArray(self.uuid) }):sub(2, math.huge),
+			uuid = "[I;" .. toJson({ client.uuidToIntArray(self.uuid) }):sub(2), -- Combines `[I;` with the substring of `int,int,int,int]`
 		}
-		return self.item .. toJson(self.data):gsub('"%%(%d+)"', function(n) return replace[tonumber(n)] end)
+		return self.item .. toJson(self.data):gsub('"%${(%a+)}"', function(n) return replace[n] end)
 	end,
 }
 ---@package
@@ -348,7 +378,7 @@ local function newItem(self)
 		item = "minecraft:air",
 		data = {
 			display = {},
-			SkullOwner = { Id = "%1" },
+			SkullOwner = { Id = "${uuid}" },
 		},
 	}, itemGenerator)
 end
@@ -389,16 +419,28 @@ end
 
 ---Sets the skull owner UUID of this item, if it is a player skull
 ---@param uuid string
+---@return self
 function itemGenerator:setUUID(uuid)
 	self = newItem(self)
 	self.uuid = uuid
 	return self
 end
 
-function itemGenerator:setTexture(...)
+---Sets the texture fields to the provided strings
+---
+---If no strings are provided, removes all textures on this item
+---@param ... string
+---@return self
+function itemGenerator:setTextures(...)
+	local injest = { ... }
+	for k, v in ipairs(injest) do
+		injest[k] = not isBase64(v) and base64.encode(v) or v
+	end
+
 	self = newItem(self)
 	self.data.SkullOwner.Properties = {}
-	self.data.SkullOwner.Properties.textures = ... and parseJson(pack(false, "Value", ...) --[[@as string]])
+	self.data.SkullOwner.Properties.textures = ... and
+	parseJson(pack(false, "Value", table.unpack(injest)) --[[@as string]])
 	return self
 end
 
@@ -891,7 +933,9 @@ end
 ---@nodiscard
 function anyClass:getItemStack(count, damage)
 	local priv = self[1]
-	priv.generatedItem:setTexture(base64.encode(json.encode(priv.vars)))
+	-- n * 0.75; where n is the total chunk length after converting to Base64. n must be divisible by 4!
+
+	priv.generatedItem:setTextures(gsplit(json.encode(priv.vars), 32764 * 0.75))
 	return world.newItem(tostring(priv.generatedItem), count, damage)
 end
 

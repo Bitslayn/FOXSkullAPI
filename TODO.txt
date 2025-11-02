@@ -4,12 +4,12 @@ bakedItem:rot(mode, rotation)
 bakedItem:pos(mode, position)
 bakedItem:scale(mode, scale)
 
+-- Add functions for getting max bytes and bytes used for skulls
+-- Make methods that aren't meant for a particular skull type not cause any issues
+-- Asserts everywhere
+
 -- Make bakery and baked item model injestion
 -- Add modes helper
--- Make variables store and load from multiple textures
--- Add functions for getting max bytes and bytes used for skulls
--- Asserts everywhere
--- Make methods that aren't meant for a particular skull type not cause any issues
 -- Get ready for release
 
 -- Work on the wiki
