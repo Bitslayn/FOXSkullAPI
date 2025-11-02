@@ -438,9 +438,9 @@ function itemGenerator:setTextures(...)
 	end
 
 	self = newItem(self)
-	self.data.SkullOwner.Properties = {}
-	self.data.SkullOwner.Properties.textures = ... and
-	parseJson(pack(false, "Value", table.unpack(injest)) --[[@as string]])
+	local owner = self.data.SkullOwner
+	owner.Properties = {}
+	owner.Properties.textures = ... and parseJson(pack(false, "Value", table.unpack(injest)) --[[@as string]])
 	return self
 end
 
@@ -1118,6 +1118,7 @@ local function lock(s, k, v)
 	rawset(s, k, v)
 end
 
+
 local metaAny = { __index = anyClass, __newindex = lock, __type = "FOXSkull.any" }
 local metaBlock = { __index = blockClass, __newindex = lock, __type = "FOXSkull.block" }
 local metaItem = { __index = itemClass, __newindex = lock, __type = "FOXSkull.item" }
@@ -1292,42 +1293,6 @@ local hoverOverlay = newWorldOverlay(vec(1, 1, 1, 0.4), ":skull_4:", 16)
 local silentErrorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 1.5)
 local errorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 16)
 
--- ---@param icon string?
--- ---@return ModelPart
--- local function newFlatOverlay(icon)
--- 	local mdp = models:newPart("newFlatOverlay", "Skull")
--- 		:visible(false)
-
--- 	local iconMat = matrices.mat4()
--- 		:translate(0, 8, -16)
--- 		:rotate(27, -45)
--- 	local tooltipMat = matrices.mat4()
--- 		:translate(client.getScaledWindowSize():mul(-0.5, -0.75).xy_)
--- 		:rotate(27, -45)
--- 	tooltipMat.v44 = 0
-
--- 	mdp:newText("icon")
--- 		:text(icon)
--- 		:alignment("CENTER")
--- 		:matrix(iconMat)
-
--- 	local bb = mdp
--- 		:newPart("bb")
--- 		:matrix(tooltipMat)
--- 	local tpvt = bb
--- 		:newPart("tpvt")
--- 	tpvt:newText("fg")
--- 		:light(15)
--- 	tpvt:newText("bg")
--- 		:light(15)
--- 		:background(true)
--- 		:seeThrough(true)
-
--- 	return mdp
--- end
-
--- local errorFlat = newFlatOverlay("§4✖")
-
 --#ENDREGION
 --#REGION Vanilla
 
@@ -1373,7 +1338,6 @@ end
 
 local function getViewerSelectingSkull(block, entity)
 	return
-	-- isGUI and getViewerHeldSkull() == self or
 		entity == viewer and not renderer:isFirstPerson() or
 		block and viewer:getTargetedBlock():getPos() == block:getPos() or
 		entity and viewer:getTargetedEntity() == entity
@@ -1446,8 +1410,6 @@ function events.skull_render(delta, block, item, entity, context)
 	local facingSkull = heldSkull and block and getViewerFacingSkull(block)
 
 	if priv.error and not (context == "OTHER" or context:find("FIRST_PERSON")) then -- Newer versions have issues with some render types
-		-- local isGUI = context == "GUI"
-		-- overlay = isGUI and errorFlat or errorWorld
 		overlay = facingSkull and errorOverlay or silentErrorOverlay
 
 		local isSelected = getViewerSelectingSkull(block, entity)
@@ -1557,55 +1519,6 @@ function events.skull_render()
 end
 
 --#ENDREGION
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Consumer ♡˚
-------------------------------------------------------------------------------------------------
-
--- ---Consumes a modelpart, allowing that part to be applied to the skull of a matching name
--- ---@param part ModelPart
--- ---@param name string
--- local function consume(part, name)
--- 	name = name:lower()
--- 	part:parentType("None"):visible(false)
-
--- 	table.insert(
--- 		skullEvents.skull_init,
--- 		---@param self FOXSkull.any
--- 		function(self)
--- 			if self:getName():lower():find(name) then
--- 				self:model(part)
--- 			end
--- 		end
--- 	)
--- end
-
--- ---Searches all children of a modelpart group
--- ---@param part ModelPart
--- local function searchModels(part)
--- 	for _, chld in ipairs(part:getChildren()) do
--- 		if chld:getParentType() == "Skull" then
--- 			local suffix = chld:getName():match("^[^#]*#(.*)$")
-
--- 			if suffix then
--- 				suffix = suffix:lower()
--- 					:gsub("^%s*", "") -- Remove trailing whitespaces
--- 					:gsub("%s$", "") -- Remove leading whitespaces
-
--- 				if suffix == "default" then
--- 					defaultModel = copyModel(chld)
--- 				else
--- 					consume(chld, suffix)
--- 				end
--- 			end
--- 		end
--- 		searchModels(chld)
--- 	end
--- end
-
--- if autoConsumeModels then
--- 	searchModels(models)
--- end
 
 --#ENDREGION
 
