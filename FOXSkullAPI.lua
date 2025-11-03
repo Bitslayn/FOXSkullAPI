@@ -359,12 +359,10 @@ local formatTypes = {
 	end,
 }
 
----Formats the given json and prettifies it
----@param str string
+---Formats the given table and returns a prettified string
+---@param tbl table
 ---@return string?
-function json.format(str)
-	local tbl = json.decode(str) -- Decode first
-
+function json.format(tbl)
 	local fig, i = {}, 0
 
 	local function rawType(curr)
@@ -388,12 +386,16 @@ function json.format(str)
 
 		return converted
 	end
-	str = toJson(rawType(tbl))
+
+	local str = toJson(rawType(tbl))
 	if str == "{}" then return end
 
 	local indent = 0
 	local isString = false
 	local isFigura = false
+
+	---Pattern matching only the chars looked at
+	local pattern = [=[["'{}%[%],:\n]]=]
 
 	---@type {[string]: fun(s: string): string?}
 	local chars = {
@@ -446,7 +448,7 @@ function json.format(str)
 	str = str
 		:gsub("", "")                                             -- Remove all user-defined sub chars
 		:gsub('"%${(%x+)}"', fig)                                  -- Add formatted Figura types to json string
-		:gsub(".", function(s) return chars[s] and chars[s](s) or s end) -- Format json string
+		:gsub(pattern, function(s) return chars[s] and chars[s](s) or s end) -- Format json string
 		:gsub("", "§")                                            -- Replace sub chars with legacy formatting code
 
 	return str
@@ -1725,7 +1727,7 @@ local function skullTick()
 
 		local debugEnabled = client.isDebugOverlayEnabled()
 
-		local str = priv.isErrored and priv.tooltip or debugEnabled and json.format(json.encode(priv.vars)) or nil
+		local str = priv.isErrored and priv.tooltip or debugEnabled and json.format(priv.vars) or nil
 		priv.tooltip = str
 
 		if debugEnabled then
