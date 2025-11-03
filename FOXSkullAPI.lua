@@ -395,7 +395,7 @@ function json.format(tbl)
 	local isFigura = false
 
 	---Pattern matching only the chars looked at
-	local pattern = [=[["'{}%[%],:\n]]=]
+	local pattern = "[\"'{}%[%],:\n]"
 
 	---@type {[string]: fun(s: string): string?}
 	local chars = {
