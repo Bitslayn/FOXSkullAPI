@@ -177,10 +177,10 @@ local encodeTypes = {
 	---@param v ModelPart
 	ModelPart = function(v)
 		local p = {}
-		repeat
+		while v:getParent() do
 			table.insert(p, 1, v:getName())
 			v = v:getParent()
-		until not v:getParent()
+		end
 		return "Part", p
 	end,
 }
@@ -282,6 +282,174 @@ function json.decode(str)
 end
 
 --#ENDREGION
+--#REGION Format
+
+---Converts the Figura type into a formatted string
+---@type {[string]: fun(v: any): name: string, type: string?}
+local formatTypes = {
+	---@param v Vector2
+	Vector2 = function(v)
+		return tostring(v)
+	end,
+	---@param v Vector3
+	Vector3 = function(v)
+		return tostring(v)
+	end,
+	---@param v Vector4
+	Vector4 = function(v)
+		return tostring(v)
+	end,
+
+
+	---@param v Matrix2
+	Matrix2 = function(v)
+		local s = tostring(v)
+			:sub(2)
+			:gsub(string.char(9), "  ")
+		return s
+	end,
+	---@param v Matrix3
+	Matrix3 = function(v)
+		local s = tostring(v)
+			:sub(2)
+			:gsub(string.char(9), "  ")
+		return s
+	end,
+	---@param v Matrix4
+	Matrix4 = function(v)
+		local s = tostring(v)
+			:sub(2)
+			:gsub(string.char(9), "  ")
+		return s
+	end,
+
+
+	---@param v Player
+	PlayerAPI = function(v)
+		return v:getName(), "Player"
+	end,
+	---@param v Entity
+	EntityAPI = function(v)
+		return v:getName(), "Entity"
+	end,
+	---@param v LivingEntity
+	LivingEntityAPI = function(v)
+		return v:getName(), "LivingEntity"
+	end,
+
+
+	---@param v BlockState
+	BlockState = function(v)
+		return v.id, type(v)
+	end,
+	---@param v ItemStack
+	ItemStack = function(v)
+		return v.id .. " x" .. v:getCount(), type(v)
+	end,
+
+
+	---@param v ModelPart
+	ModelPart = function(v)
+		return v:getName(), type(v)
+	end,
+}
+
+local tab = "  "
+local sub = string.char(26)
+
+---Formats the given json and prettifies it
+---@param str string
+---@return string
+function json.format(str)
+	local tbl = json.decode(str) -- Decode first
+
+	local fig, i = {}, 0
+
+	local function rawType(curr)
+		local t = type(curr)
+		local converted = {}
+
+		if formatTypes[t] then
+			i = i + 1
+
+			local x = string.format("%x", i)
+			local name, type = formatTypes[t](curr)
+			fig[x] = sub .. string.format(type and "e%s (%s)" or "e%s", name, type) .. sub .. "r"
+			converted = "${" .. x .. "}"
+		elseif t == "table" then
+			for k, v in pairs(curr) do
+				converted[k] = rawType(v)
+			end
+		else
+			converted = curr
+		end
+
+		return converted
+	end
+	str = toJson(rawType(tbl))
+
+	local indent = 0
+	local isString = false
+	local isFigura = false
+
+	---@type {[string]: fun(s: string): string?}
+	local chars = {
+		['"'] = function() isString = not isString end,
+		["'"] = function() isString = not isString end,
+
+		[sub] = function() isFigura = not isFigura end,
+
+		["{"] = function(s)
+			if isString or isFigura then return s end
+
+			indent = indent + 1
+			return s .. "\n" .. string.rep(tab, indent)
+		end,
+		["["] = function(s)
+			if isString or isFigura then return s end
+
+			indent = indent + 1
+			return s .. "\n" .. string.rep(tab, indent)
+		end,
+		["}"] = function(s)
+			if isString or isFigura then return s end
+
+			indent = indent - 1
+			return "\n" .. string.rep(tab, indent) .. s
+		end,
+		["]"] = function(s)
+			if isString or isFigura then return s end
+
+			indent = indent - 1
+			return "\n" .. string.rep(tab, indent) .. s
+		end,
+
+		[","] = function(s)
+			if isString or isFigura then return s end
+
+			return s .. "\n" .. string.rep(tab, indent)
+		end,
+		[":"] = function(s)
+			if isString or isFigura then return s end
+
+			return s .. " "
+		end,
+
+		["\n"] = function(s)
+			return s .. string.rep(tab, indent)
+		end,
+	}
+
+	str = str
+		:gsub(sub, "")                                             -- Remove all user-defined sub chars
+		:gsub('"%${(%x+)}"', fig)                                  -- Add formatted Figura types to json string
+		:gsub(".", function(s) return chars[s] and chars[s](s) or s end) -- Format json string
+		:gsub(sub, "§")                                            -- Replace sub chars with legacy formatting code
+
+	return str
+end
+
+--#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Split Strings ♡˚
@@ -362,7 +530,7 @@ local itemGenerator = {
 		local replace = {
 			uuid = "[I;" .. toJson({ client.uuidToIntArray(self.uuid) }):sub(2), -- Combines `[I;` with the substring of `int,int,int,int]`
 		}
-		return self.item .. toJson(self.data):gsub('"%${(%a+)}"', function(n) return replace[n] end)
+		return self.item .. toJson(self.data):gsub('"%${(%a+)}"', replace)
 	end,
 }
 ---@package
@@ -529,8 +697,9 @@ local skull = {}
 ---@field timestamp number
 ---@field visible boolean?
 ---@field uuid string
----@field error string?
----@field errorOffset number?
+---@field isErrored boolean?
+---@field tooltip string?
+---@field tooltipOffset number?
 ---@field contexts {[FOXSkull.any.context]: any[]} Used for the tick event to run it on every item context. The table stores all the variables that should be set that context, currently only having to set the entity
 ---@field generatedItem FOXSkull.itemGenerator
 ---@field vars table
@@ -944,6 +1113,7 @@ end
 ---If no slot is open then the current selected slot is used
 ---@return number
 local function findOpenSlot()
+	local player = world.getPlayers()[avatar:getEntityName()]
 	local selectedSlot = player:getNbt().SelectedItemSlot
 	local slot = selectedSlot
 	repeat
@@ -962,6 +1132,7 @@ end
 ---@param damage number?
 ---@return self
 function anyClass:giveItem(count, damage)
+	local player = world.getPlayers()[avatar:getEntityName()]
 	if host:isHost() and player:getGamemode() == "CREATIVE" then
 		host:setSlot(findOpenSlot(), self --[[@as FOXSkull.any]]:getItemStack(count, damage))
 
@@ -1019,8 +1190,9 @@ local function try(self, f, ...)
 	end
 
 	local priv = self[1]
-	priv.error = result
-	priv.errorOffset = client.getTextWidth(result) * 0.125
+	priv.isErrored = not success
+	priv.tooltip = result
+	priv.tooltipOffset = client.getTextWidth(result) * 0.125
 end
 
 local onMax = avatar:getMaxWorldTickCount() == 2 ^ 31 - 1 and avatar:getMaxRenderCount() == 2 ^ 31 - 1
@@ -1345,10 +1517,12 @@ end
 
 ---@type FOXSkull.any.models
 local defaultModels = {}
----@type ModelPart, ModelPart
-local currentModel, overlay
+---@type ModelPart, ModelPart, ModelPart
+local currentModel, overlay, tooltip
 ---@type number
 local sharedDelta
+---@type FOXSkull.any
+local selected
 
 ---@type FOXSkull.any
 local heldSkull
@@ -1379,7 +1553,7 @@ function events.skull_render(delta, block, item, entity, context)
 
 	-- Skull is rendering, run its render function
 
-	if self.render and not priv.error then
+	if self.render and not priv.isErrored then
 		try(self, self.render, delta, self, this)
 	end
 
@@ -1389,7 +1563,7 @@ function events.skull_render(delta, block, item, entity, context)
 	if currentModel then currentModel:visible(false) end
 	currentModel = nil
 
-	if priv.error then
+	if priv.isErrored then
 		currentModel = vanillaSkull
 	elseif priv.models[context] or priv.models.OTHER then
 		currentModel = priv.visible and (priv.models[context] or priv.models.OTHER) or invisibleSkull
@@ -1400,30 +1574,36 @@ function events.skull_render(delta, block, item, entity, context)
 	if currentModel then currentModel:visible(true) end
 
 
-	-- Render this skull's overlay
+	-- Render this skull's overlay and tooltip
 
 	if overlay then overlay:visible(false) end
 	overlay = nil
+	if tooltip then tooltip:visible(false) end
+	tooltip = nil
 
 	if not currentModel then return end
 
 	local facingSkull = heldSkull and block and getViewerFacingSkull(block)
+	local isSelected = getViewerSelectingSkull(block, entity)
 
-	if priv.error and not (context == "OTHER" or context:find("FIRST_PERSON")) then -- Newer versions have issues with some render types
+	-- Newer versions have issues with some render types
+	local overlayBL = context == "OTHER" or context:find("FIRST_PERSON")
+
+	if priv.isErrored and not overlayBL then
 		overlay = facingSkull and errorOverlay or silentErrorOverlay
-
-		local isSelected = getViewerSelectingSkull(block, entity)
-		local tpvt = overlay.bb.tpvt:visible(isSelected)
-
-		if isSelected then
-			tpvt:pos(priv.errorOffset, -8, 0)
-			tpvt:getTask("fg") --[[@as TextTask]]
-				:text(priv.error)
-			tpvt:getTask("bg") --[[@as TextTask]]
-				:text(priv.error)
-		end
 	elseif facingSkull then
 		overlay = hoverOverlay
+	end
+
+	if isSelected and overlay then
+		tooltip = overlay.bb.tpvt:visible(true)
+		tooltip:pos(priv.tooltipOffset, -8, 0)
+		tooltip:getTask("fg") --[[@as TextTask]]
+			:text(priv.tooltip)
+		tooltip:getTask("bg") --[[@as TextTask]]
+			:text(priv.tooltip)
+
+		selected = not priv.isErrored and self
 	end
 
 	if overlay then overlay:visible(true) end
@@ -1466,7 +1646,7 @@ local function tick()
 
 	for _, self in pairs(all) do
 		local priv = self[1]
-		if priv.error then goto continue end
+		if priv.isErrored then goto continue end
 
 		if self.tick then
 			for _, params in pairs(priv.contexts) do
@@ -1481,6 +1661,17 @@ local function tick()
 		end
 
 		::continue::
+	end
+
+	if selected then
+		local priv = selected[1]
+
+		local str = json.format(json.encode(priv.vars))
+
+		priv.tooltip = str
+		priv.tooltipOffset = str and client.getTextWidth(str) * 0.125
+
+		selected = nil
 	end
 end
 
