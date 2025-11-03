@@ -1723,11 +1723,14 @@ local function skullTick()
 	if selected then
 		local priv = selected[1]
 
-		local str = priv.isErrored and priv.tooltip or
-			client.isDebugOverlayEnabled() and json.format(json.encode(priv.vars)) or nil
+		local debugEnabled = client.isDebugOverlayEnabled()
+
+		local str = priv.isErrored and priv.tooltip or debugEnabled and json.format(json.encode(priv.vars)) or nil
 		priv.tooltip = str
 
-		priv.hasVars = str and true
+		if debugEnabled then
+			priv.hasVars = str and true
+		end
 
 		if not str then return end
 		local off = client.getTextDimensions(str)
