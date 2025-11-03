@@ -708,7 +708,7 @@ local skull = {}
 ---@field uuid string
 ---@field isErrored boolean?
 ---@field tooltip string?
----@field tooltipOffset Vector2?
+---@field tooltipOffset Vector3?
 ---@field hasVars boolean?
 ---@field generatedItem FOXSkull.generatedItemStack
 ---@field vars table
@@ -1496,9 +1496,9 @@ end
 
 local hoverOverlay = newWorldOverlay(vec(1, 1, 1, 0.4), ":skull_4:", 16)
 local errorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 16)
-local silentErrorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 1)
+local silentErrorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "", 1)
 local infoOverlay = newWorldOverlay(vec(0, 0.5, 1, 0.4), ":info:", 16)
-local silentInfoOverlay = newWorldOverlay(vec(0, 0.5, 1, 0.4), ":info:", 1)
+local silentInfoOverlay = newWorldOverlay(vec(0, 0.5, 1, 0.4), "", 1)
 
 --#ENDREGION
 --#REGION Vanilla
@@ -1625,7 +1625,7 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if isSelected and overlay then
 		tooltip = overlay.bb.tpvt:visible(true)
-		tooltip:pos(priv.tooltipOffset and priv.tooltipOffset.xy_)
+		tooltip:pos(priv.tooltipOffset)
 		tooltip:getTask("fg") --[[@as TextTask]]
 			:text(priv.tooltip)
 		tooltip:getTask("bg") --[[@as TextTask]]
@@ -1737,7 +1737,7 @@ local function skullTick()
 
 		if off.y < 128 then off.y = -64 end
 
-		priv.tooltipOffset = off * 0.125
+		priv.tooltipOffset = (off * 0.125):augmented(-8)
 
 		selected = nil
 	end
