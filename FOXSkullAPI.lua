@@ -1461,8 +1461,10 @@ local function newWorldOverlay(color, icon, depth)
 end
 
 local hoverOverlay = newWorldOverlay(vec(1, 1, 1, 0.4), ":skull_4:", 16)
-local silentErrorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 1.5)
 local errorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 16)
+local silentErrorOverlay = newWorldOverlay(vec(1, 0, 0, 0.4), "§4✖", 1)
+local infoOverlay = newWorldOverlay(vec(0, 0.5, 1, 0.4), ":info:", 16)
+local silentInfoOverlay = newWorldOverlay(vec(0, 0.5, 1, 0.4), ":info:", 1)
 
 --#ENDREGION
 --#REGION Vanilla
@@ -1590,8 +1592,11 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if priv.isErrored and not overlayBL then
 		overlay = facingSkull and errorOverlay or silentErrorOverlay
+	elseif client.isDebugOverlayEnabled() then
+		overlay = facingSkull and infoOverlay or silentInfoOverlay
 	elseif facingSkull then
 		overlay = hoverOverlay
+		priv.tooltip = nil
 	end
 
 	if isSelected and overlay then
@@ -1665,12 +1670,14 @@ local function tick()
 	if selected then
 		local priv = selected[1]
 
-		local str = priv.isErrored and priv.tooltip or json.format(json.encode(priv.vars))
-		local off = str and client.getTextDimensions(str)
+		local str = priv.isErrored and priv.tooltip or client.isDebugOverlayEnabled() and json.format(json.encode(priv.vars)) or nil
+		priv.tooltip = str
+		
+		if not str then return end
+		local off = client.getTextDimensions(str)
 
 		if off.y < 128 then off.y = -64 end
 
-		priv.tooltip = str
 		priv.tooltipOffset = off * 0.125
 
 		selected = nil
