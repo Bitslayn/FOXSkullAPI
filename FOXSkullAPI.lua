@@ -699,7 +699,7 @@ local skull = {}
 ---@field uuid string
 ---@field isErrored boolean?
 ---@field tooltip string?
----@field tooltipOffset number?
+---@field tooltipOffset Vector2?
 ---@field contexts {[FOXSkull.any.context]: any[]} Used for the tick event to run it on every item context. The table stores all the variables that should be set that context, currently only having to set the entity
 ---@field generatedItem FOXSkull.itemGenerator
 ---@field vars table
@@ -1192,7 +1192,6 @@ local function try(self, f, ...)
 	local priv = self[1]
 	priv.isErrored = not success
 	priv.tooltip = result
-	priv.tooltipOffset = client.getTextWidth(result) * 0.125
 end
 
 local onMax = avatar:getMaxWorldTickCount() == 2 ^ 31 - 1 and avatar:getMaxRenderCount() == 2 ^ 31 - 1
@@ -1597,13 +1596,13 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if isSelected and overlay then
 		tooltip = overlay.bb.tpvt:visible(true)
-		tooltip:pos(priv.tooltipOffset, -8, 0)
+		tooltip:pos(priv.tooltipOffset and priv.tooltipOffset.xy_)
 		tooltip:getTask("fg") --[[@as TextTask]]
 			:text(priv.tooltip)
 		tooltip:getTask("bg") --[[@as TextTask]]
 			:text(priv.tooltip)
 
-		selected = not priv.isErrored and self
+		selected = self
 	end
 
 	if overlay then overlay:visible(true) end
@@ -1666,10 +1665,13 @@ local function tick()
 	if selected then
 		local priv = selected[1]
 
-		local str = json.format(json.encode(priv.vars))
+		local str = priv.isErrored and priv.tooltip or json.format(json.encode(priv.vars))
+		local off = str and client.getTextDimensions(str)
+
+		if off.y < 128 then off.y = -64 end
 
 		priv.tooltip = str
-		priv.tooltipOffset = str and client.getTextWidth(str) * 0.125
+		priv.tooltipOffset = off * 0.125
 
 		selected = nil
 	end
