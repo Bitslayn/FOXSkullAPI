@@ -4,9 +4,6 @@ bakedItem:rot(mode, rotation)
 bakedItem:pos(mode, position)
 bakedItem:scale(mode, scale)
 
--- Add modes helper
-
 -- Make bakery and baked item model injestion
--- Get ready for release
 
 -- Work on the wiki
