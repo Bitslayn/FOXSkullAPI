@@ -9,6 +9,11 @@ Github: https://github.com/Bitslayn/FOXSkullAPI
 Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 ]]
 
+-- DO NOT TOUCH THESE VALUES
+
+local __brand, __ver, __branch = "FOXSkullAPI", "1.0.0", "dev"
+local __sign = string.format("%s+%s-%s", __brand, __ver, __branch)
+
 --==============================================================================================================================
 --#REGION ˚♡ Utilities ♡˚
 --==============================================================================================================================
@@ -517,11 +522,11 @@ end
 --#ENDREGION
 --#REGION Generator
 
----@class FOXSkull.itemGenerator
+---@class FOXSkull.generatedItemStack
 ---@field item Minecraft.itemID
 ---@field data table
 local itemGenerator = {
-	---@param self FOXSkull.itemGenerator
+	---@param self FOXSkull.generatedItemStack
 	---@package
 	__tostring = function(self)
 		local replace = {
@@ -606,6 +611,9 @@ function itemGenerator:setTextures(...)
 	local owner = self.data.SkullOwner
 	owner.Properties = {}
 	owner.Properties.textures = ... and parseJson(pack(false, "Value", table.unpack(injest)) --[[@as string]])
+	for _, tex in pairs(owner.Properties.textures) do
+		tex.Signature = __sign
+	end
 	return self
 end
 
@@ -647,8 +655,8 @@ local function copyModel(model)
 end
 
 ---Replaces the model of the provided table with a new model, removing the old one
----@param models FOXSkull.any.models
----@param context FOXSkull.any.context|FOXSkull.any.context[]?
+---@param models FOXSkull.models.any
+---@param context FOXSkull.context.any|FOXSkull.context.any[]?
 ---@param model ModelPart|ModelPart[]?
 ---@param copy boolean?
 local function replaceModel(models, context, model, copy)
@@ -689,24 +697,24 @@ local viewer = world.getPlayers()[client.getViewer():getName()]
 ---@class FOXSkull
 local skull = {}
 
----@alias FOXSkull.any.models {[FOXSkull.any.context]: ModelPart}
+---@alias FOXSkull.models.any {[FOXSkull.context.any]: ModelPart}
 
 ---Internal variables not to be accessed outside of developing FOXSkullAPI!
----@class FOXSkull.any.private
----@field models FOXSkull.any.models
+---@class FOXSkull.private.any
+---@field models FOXSkull.models.any
 ---@field timestamp number
 ---@field visible boolean?
 ---@field uuid string
 ---@field isErrored boolean?
 ---@field tooltip string?
 ---@field tooltipOffset Vector2?
----@field generatedItem FOXSkull.itemGenerator
+---@field generatedItem FOXSkull.generatedItemStack
 ---@field vars table
 
----@alias FOXSkull.block.context
+---@alias FOXSkull.context.block
 ---| "BLOCK"                   Placed as a block
 ---| "OTHER"                   Some other context
----@alias FOXSkull.item.context
+---@alias FOXSkull.context.item
 ---| "HEAD"                    Worn on head
 ---| "FIRST_PERSON_RIGHT_HAND" Held in right hand in first person
 ---| "FIRST_PERSON_LEFT_HAND"  Held in left hand in first person
@@ -716,48 +724,48 @@ local skull = {}
 ---| "FIXED"                   Held in item frame
 ---| "GUI"	                   Stored in container or inventory
 ---| "OTHER"                   Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5
----@alias FOXSkull.any.context FOXSkull.block.context|FOXSkull.item.context
+---@alias FOXSkull.context.any FOXSkull.context.block|FOXSkull.context.item
 
 local legacyContexts = {
 	RIGHT_HAND = "THIRD_PERSON_RIGHT_HAND",
 	LEFT_HAND = "THIRD_PERSON_LEFT_HAND",
 }
 
----@alias FOXSkull.block.render fun(delta: number, self: FOXSkull.block, block: BlockState)
----@alias FOXSkull.item.render fun(delta: number, self: FOXSkull.item, item: ItemStack)
----@alias FOXSkull.any.render fun(delta: number, self: FOXSkull.any)
----@alias FOXSkull.block.tick fun(self: FOXSkull.block, block: BlockState)
----@alias FOXSkull.item.tick fun(self: FOXSkull.item, item: ItemStack)
----@alias FOXSkull.any.tick fun(self: FOXSkull.any)
----@alias FOXSkull.block.onPunch fun(self: FOXSkull.block, puncher: Entity)
----@alias FOXSkull.item.onPunch fun(self: FOXSkull.item, puncher: Entity)
----@alias FOXSkull.any.onPunch fun(self: FOXSkull.any, puncher: Entity)
+---@alias FOXSkull.render.block fun(delta: number, self: FOXSkull.block, block: BlockState)
+---@alias FOXSkull.render.item fun(delta: number, self: FOXSkull.item, item: ItemStack)
+---@alias FOXSkull.render.any fun(delta: number, self: FOXSkull.any)
+---@alias FOXSkull.tick.block fun(self: FOXSkull.block, block: BlockState)
+---@alias FOXSkull.tick.item fun(self: FOXSkull.item, item: ItemStack)
+---@alias FOXSkull.tick.any fun(self: FOXSkull.any)
+---@alias FOXSkull.onPunch.block fun(self: FOXSkull.block, puncher: Entity)
+---@alias FOXSkull.onPunch.item fun(self: FOXSkull.item, puncher: Entity)
+---@alias FOXSkull.onPunch.any fun(self: FOXSkull.any, puncher: Entity)
 
 ---Represents any skull, block or item, that's rendered
 ---@class FOXSkull.any
----@field context FOXSkull.any.context
----@field render FOXSkull.any.render?
----@field tick FOXSkull.any.tick?
----@field onPunch FOXSkull.any.onPunch?
----@field package [1] FOXSkull.any.private
+---@field context FOXSkull.context.any
+---@field render FOXSkull.render.any?
+---@field tick FOXSkull.tick.any?
+---@field onPunch FOXSkull.onPunch.any?
+---@field package [1] FOXSkull.private.any
 ---@field package __index FOXSkull.any
 local anyClass = {}
 ---Represents a skull placed in loaded chunks
 ---@class FOXSkull.block: FOXSkull.any
 ---@field block BlockState
----@field context FOXSkull.block.context
----@field render FOXSkull.block.render?
----@field tick FOXSkull.block.tick?
----@field onPunch FOXSkull.block.onPunch?
+---@field context FOXSkull.context.block
+---@field render FOXSkull.render.block?
+---@field tick FOXSkull.tick.block?
+---@field onPunch FOXSkull.onPunch.block?
 local blockClass = anyClass
 ---Represents a unique skull item being rendered
 ---@class FOXSkull.item: FOXSkull.any
 ---@field item ItemStack
 ---@field entity Entity
----@field context FOXSkull.item.context
----@field render FOXSkull.item.render?
----@field tick FOXSkull.item.tick?
----@field onPunch FOXSkull.item.onPunch?
+---@field context FOXSkull.context.item
+---@field render FOXSkull.render.item?
+---@field tick FOXSkull.tick.item?
+---@field onPunch FOXSkull.onPunch.item?
 local itemClass = anyClass
 
 ---The internal string ID which differs based on skull context
@@ -849,12 +857,12 @@ end
 ---Sets the model to render for this skull
 ---@generic self
 ---@param model ModelPart? The modelpart to copy
----@param context FOXSkull.any.context|FOXSkull.any.context[]? Defaults to "OTHER". Sets which render context this model is for
+---@param context FOXSkull.context.any|FOXSkull.context.any[]? Defaults to "OTHER". Sets which render context this model is for
 ---@param copy boolean? Defaults to true. If the modelpart should be copied or injested
 ---@return self
----@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context|FOXSkull.block.context[]?, copy: boolean?): FOXSkull.block
----@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context|FOXSkull.block.context[]?, copy: boolean?): FOXSkull.item
----@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context|FOXSkull.block.context[]?, copy: boolean?): FOXSkull.any
+---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.context.block|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.context.item|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.context.any|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.any
 function anyClass:setModel(model, context, copy)
 	replaceModel(self[1].models, context, model, copy)
 	return self
@@ -863,12 +871,12 @@ end
 ---Sets the model to render for this skull
 ---@generic self
 ---@param model ModelPart? The modelpart to copy
----@param context FOXSkull.any.context|FOXSkull.any.context[]? Defaults to "OTHER". Sets which render context this model is for
+---@param context FOXSkull.context.any|FOXSkull.context.any[]? Defaults to "OTHER". Sets which render context this model is for
 ---@param copy boolean? Defaults to true. If the modelpart should be copied or injested
 ---@return self
----@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.block.context|FOXSkull.block.context[]?, copy: boolean?): FOXSkull.block
----@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.item.context|FOXSkull.block.context[]?, copy: boolean?): FOXSkull.item
----@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.any.context|FOXSkull.block.context[]?, copy: boolean?): FOXSkull.any
+---@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.context.block|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.context.item|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.context.any|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.any
 function anyClass:model(model, context, copy)
 	replaceModel(self[1].models, context, model, copy)
 	return self
@@ -877,8 +885,8 @@ end
 ---Gets the model set to render for this skull
 ---@param context any
 ---@return ModelPart
----@overload fun(self: FOXSkull.block, context: FOXSkull.block.context?): ModelPart
----@overload fun(self: FOXSkull.item, context: FOXSkull.item.context?): ModelPart
+---@overload fun(self: FOXSkull.block, context: FOXSkull.context.block?): ModelPart
+---@overload fun(self: FOXSkull.item, context: FOXSkull.context.item?): ModelPart
 ---@nodiscard
 function anyClass:getModel(context)
 	context = context and string.upper(context) or "OTHER"
@@ -1029,24 +1037,24 @@ end
 --#REGION Functions
 
 ---Sets the function to run when this skull renders
----@overload fun(self: FOXSkull.block, func: FOXSkull.block.render): FOXSkull.block
----@overload fun(self: FOXSkull.item, func: FOXSkull.item.render): FOXSkull.item
+---@overload fun(self: FOXSkull.block, func: FOXSkull.render.block): FOXSkull.block
+---@overload fun(self: FOXSkull.item, func: FOXSkull.render.item): FOXSkull.item
 function anyClass:setRender(func)
 	self.render = func
 	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
 ---Sets the function to run when this skull ticks
----@overload fun(self: FOXSkull.block, func: FOXSkull.block.tick): FOXSkull.block
----@overload fun(self: FOXSkull.item, func: FOXSkull.item.tick): FOXSkull.item
+---@overload fun(self: FOXSkull.block, func: FOXSkull.tick.block): FOXSkull.block
+---@overload fun(self: FOXSkull.item, func: FOXSkull.tick.item): FOXSkull.item
 function anyClass:setTick(func)
 	self.tick = func
 	return self --[[@as FOXSkull.block|FOXSkull.item]]
 end
 
 ---Sets a function to run when this skull is punched
----@overload fun(self: FOXSkull.block, func: FOXSkull.block.onPunch): FOXSkull.block
----@overload fun(self: FOXSkull.item, func: FOXSkull.item.onPunch): FOXSkull.item
+---@overload fun(self: FOXSkull.block, func: FOXSkull.onPunch.block): FOXSkull.block
+---@overload fun(self: FOXSkull.item, func: FOXSkull.onPunch.item): FOXSkull.item
 function anyClass:setOnPunch(func)
 	self.onPunch = func
 	return self --[[@as FOXSkull.block|FOXSkull.item]]
@@ -1164,22 +1172,22 @@ end
 --#REGION ˚♡ FOXSkull > Events ♡˚
 ------------------------------------------------------------------------------------------------
 
----@alias FOXSkullAPI.Events.block fun(skull: FOXSkull.block, block: BlockState)
----@alias FOXSkullAPI.Events.item fun(skull: FOXSkull.item, item: ItemStack)
----@alias FOXSkullAPI.Events.any fun(skull: FOXSkull.any)
+---@alias FOXSkullAPI.events.block fun(skull: FOXSkull.block, block: BlockState)
+---@alias FOXSkullAPI.events.item fun(skull: FOXSkull.item, item: ItemStack)
+---@alias FOXSkullAPI.events.any fun(skull: FOXSkull.any)
 ---@class FOXSkullAPI.Events
 local skullEvents = {
-	---@type FOXSkullAPI.Events.block[]
+	---@type FOXSkullAPI.events.block[]
 	block_init = {},
-	---@type FOXSkullAPI.Events.item[]
+	---@type FOXSkullAPI.events.item[]
 	item_init = {},
-	---@type FOXSkullAPI.Events.any[]
+	---@type FOXSkullAPI.events.any[]
 	skull_init = {},
-	---@type FOXSkullAPI.Events.block[]
+	---@type FOXSkullAPI.events.block[]
 	block_deinit = {},
-	---@type FOXSkullAPI.Events.item[]
+	---@type FOXSkullAPI.events.item[]
 	item_deinit = {},
-	---@type FOXSkullAPI.Events.any[]
+	---@type FOXSkullAPI.events.any[]
 	skull_deinit = {},
 }
 
@@ -1530,7 +1538,7 @@ local function getViewerSelectingSkull(block, entity)
 		entity and viewer:getTargetedEntity() == entity
 end
 
----@type FOXSkull.any.models
+---@type FOXSkull.models.any
 local defaultModels = {}
 ---@type ModelPart, ModelPart, ModelPart
 local currentModel, overlay, tooltip
@@ -1622,7 +1630,7 @@ end
 --#ENDREGION
 --#REGION Tick
 
----@type Player[]
+---@type Entity[]
 local cachedPunches
 
 ---Gets all entities near the viewer
@@ -1670,6 +1678,7 @@ local function findPuncher(self)
 		if self --[[@as FOXSkull.block]].block and
 			entity:getTargetedBlock(true, 5):getPos() == self --[[@as FOXSkull.block]].block:getPos() then
 			return entity
+			---@diagnostic disable-next-line: undefined-field
 		elseif getHeldSkull(entity, entity:getSwingArm() == "OFF_HAND") == self then
 			return entity
 		end
@@ -1760,17 +1769,19 @@ end
 --#REGION ˚♡ FOXSkulls ♡˚
 --==============================================================================================================================
 
----@class FOXSkulls
----@field block_init FOXSkullAPI.Events.block
----@field item_init FOXSkullAPI.Events.item
----@field skull_init FOXSkullAPI.Events.any
----@field block_deinit FOXSkullAPI.Events.block
----@field item_deinit FOXSkullAPI.Events.item
----@field skull_deinit FOXSkullAPI.Events.any
+---@class FOXSkullAPI.Index
 ---@field protected [FOXSkull.key.uuid] FOXSkull.any?
 ---@field protected [BlockState] FOXSkull.block?
 ---@field protected [ItemStack] FOXSkull.item?
 ---@field protected [Vector3] FOXSkull.block?
+
+---@class FOXSkullAPI: FOXSkullAPI.Index
+---@field block_init FOXSkullAPI.events.block
+---@field item_init FOXSkullAPI.events.item
+---@field skull_init FOXSkullAPI.events.any
+---@field block_deinit FOXSkullAPI.events.block
+---@field item_deinit FOXSkullAPI.events.item
+---@field skull_deinit FOXSkullAPI.events.any
 local skulls = {}
 
 ------------------------------------------------------------------------------------------------
@@ -1804,12 +1815,12 @@ local classKeys = {
 ---@param key string
 ---@param class "item"|"block"|"any"?
 ---@param part ModelPart?
----@param init FOXSkullAPI.Events.any?
----@param render FOXSkull.any.render?
----@param tick FOXSkull.any.tick?
----@param onPunch FOXSkull.any.onPunch?
----@overload fun(key: string, class: "block", part: ModelPart?, init: FOXSkullAPI.Events.block?, render: FOXSkull.block.render?, tick: FOXSkull.block.tick?, onPunch: FOXSkull.block.onPunch?)
----@overload fun(key: string, class: "item", part: ModelPart?, init: FOXSkullAPI.Events.item?, render: FOXSkull.item.render?, tick: FOXSkull.item.tick?, onPunch: FOXSkull.item.onPunch?)
+---@param init FOXSkullAPI.events.any?
+---@param render FOXSkull.render.any?
+---@param tick FOXSkull.tick.any?
+---@param onPunch FOXSkull.onPunch.any?
+---@overload fun(key: string, class: "block", part: ModelPart?, init: FOXSkullAPI.events.block?, render: FOXSkull.render.block?, tick: FOXSkull.tick.block?, onPunch: FOXSkull.onPunch.block?)
+---@overload fun(key: string, class: "item", part: ModelPart?, init: FOXSkullAPI.events.item?, render: FOXSkull.render.item?, tick: FOXSkull.tick.item?, onPunch: FOXSkull.onPunch.item?)
 function skulls.newMode(key, class, part, init, render, tick, onPunch)
 	class = class or "any"
 
@@ -1821,7 +1832,7 @@ function skulls.newMode(key, class, part, init, render, tick, onPunch)
 	assert(not tick or type(tick) == "function", "Function expected for param [5], got " .. type(tick), 2)
 	assert(not onPunch or type(onPunch) == "function", "Function expected for param [6], got " .. type(onPunch), 2)
 
-	---@type FOXSkullAPI.Events.any
+	---@type FOXSkullAPI.events.any
 	skulls[classKeys[class]] = function(self)
 		local mode = self:getVariable("mode") or self:getName()
 		if not mode:lower():find(key:lower()) then return end
@@ -1837,7 +1848,7 @@ end
 
 ---Sets the ModelPart to use as the default for skulls
 ---@param model ModelPart?
----@param context FOXSkull.any.context|FOXSkull.any.context[]?
+---@param context FOXSkull.context.any|FOXSkull.context.any[]?
 ---@param copy boolean?
 function skulls.setDefaultModel(model, context, copy)
 	replaceModel(defaultModels, context, model, copy)
@@ -1858,12 +1869,12 @@ local meta = {
 
 		table.insert(skullEvents[k], v)
 	end,
-	__type = "FOXSkullAPI",
-	__version = "1.0.0",
-	__branch = "dev",
+	__type = __brand,
+	__version = __ver,
+	__branch = __branch,
 }
 
-avatar:store("FOXSkullAPI", { version = meta.__version, branch = meta.__branch })
+avatar:store("FOXSkullAPI", __sign)
 
 return setmetatable(skulls, meta)
 
