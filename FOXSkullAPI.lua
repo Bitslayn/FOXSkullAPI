@@ -658,6 +658,8 @@ local function replaceModel(models, context, model, copy)
 	copy = copy == nil and true or copy
 
 	local function setModel(ctx, mdp)
+		assert(type(mdp) == "ModelPart", "ModelPart expected, got " .. type(mdp), 4)
+
 		ctx = ctx and string.upper(ctx) or "OTHER"
 
 		if models[ctx] then
@@ -797,9 +799,13 @@ local dirs = {
 ---@nodiscard
 function blockClass:getAttachedBlock(distance, invert)
 	local block = self.block
+	assert(block, "Failed to run function on skull of incorrect type", 2)
 
 	distance = distance or 1
 	invert = invert and -1 or 1
+
+	assert(type(distance) == "number", "Number expected, got " .. type(distance))
+	assert(type(invert) == "number", "Number expected, got " .. type(invert))
 
 	local facing = block.properties.facing
 	local pos = block:getPos() - (dirs[facing] or dirs.floor) * invert * distance
@@ -811,6 +817,7 @@ end
 ---@nodiscard
 function blockClass:getCenterPos()
 	local block = self.block
+	assert(block, "Failed to run function on skull of incorrect type", 2)
 
 	local shape = block:getOutlineShape()[1]
 	local center = math.lerp(shape[1], shape[2], 0.5) + block:getPos()
@@ -822,6 +829,7 @@ end
 ---@nodiscard
 function blockClass:getDir()
 	local block = self.block
+	assert(block, "Failed to run function on skull of incorrect type", 2)
 
 	local rot = tonumber(block.properties.rotation)
 	if rot then
@@ -837,6 +845,8 @@ end
 ---@param func function
 ---@return FOXSkull.block
 function blockClass:setOnPunch(func)
+	assert(self.block, "Failed to run function on skull of incorrect type", 2)
+
 	self.onPunch = func
 	return self
 end
@@ -946,6 +956,8 @@ end
 ---@return string?
 ---@nodiscard
 function itemClass:getLore()
+	assert(self.item, "Failed to run function on skull of incorrect type", 2)
+
 	local tag = self.item.tag
 	local lines = tag.display and tag.display.Lore or tag.lore or tag["minecraft:lore"]
 	if not lines then return end
@@ -1670,9 +1682,10 @@ local function tick()
 	if selected then
 		local priv = selected[1]
 
-		local str = priv.isErrored and priv.tooltip or client.isDebugOverlayEnabled() and json.format(json.encode(priv.vars)) or nil
+		local str = priv.isErrored and priv.tooltip or
+		client.isDebugOverlayEnabled() and json.format(json.encode(priv.vars)) or nil
 		priv.tooltip = str
-		
+
 		if not str then return end
 		local off = client.getTextDimensions(str)
 
