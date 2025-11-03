@@ -978,7 +978,7 @@ local function parseTextures(textures, i, j, signature)
 	for k = math.max(i, 1), math.min(j, #textures) do
 		local texture = textures[k]
 		local sig = texture.signature or texture.Signature
-		if not signature or sig:find(signature) then
+		if not signature or sig and sig:find(signature) then
 			data = texture and data .. base64.decode(texture.value or texture.Value) or data
 		end
 	end
