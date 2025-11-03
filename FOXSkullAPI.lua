@@ -637,7 +637,7 @@ local function copyModel(model)
 
 	local hasTasks = next(model:getTask())
 
-	local copy = model:copy("SkullAPIModel")
+	local copy = model:copy(model:getName())
 		:parentType("Skull")
 		:visible(false)
 		:moveTo(models)
@@ -1251,8 +1251,9 @@ local idSwitch = {
 	---@param entity Entity
 	---@return FOXSkull.key.internalID
 	ItemStack = function(key, entity)
-		return key:getCount() ..
-			(entity and entity:getUUID() or viewer:getUUID()) .. key:toStackString()
+		return key:getCount()
+			.. (entity and entity:getUUID() or viewer:getUUID())
+			.. key:toStackString()
 	end,
 	---@param key Vector3
 	---@return FOXSkull.key.internalID
@@ -1343,7 +1344,7 @@ local function new(key, entity)
 	local switch = newSwitch[type(key)]
 
 	local self = switch and switch(key) or setmetatable({}, metaAny)
-	self.entity = entity
+	self.entity = entity or self.item and viewer
 	self.context = "OTHER"
 
 	local priv = {
@@ -1832,7 +1833,7 @@ end
 ------------------------------------------------------------------------------------------------
 
 local meta = {
-	__index = function(_, k) return get(k) end,
+	__index = function(_, k) return get(k, player) end,
 	__newindex = function(_, k, v)
 		if not skullEvents[k] then
 			error("Failed to set key " .. k, 2)
