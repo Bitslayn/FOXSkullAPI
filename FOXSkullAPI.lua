@@ -354,9 +354,6 @@ local formatTypes = {
 	end,
 }
 
-local tab = "  "
-local sub = string.char(26)
-
 ---Formats the given json and prettifies it
 ---@param str string
 ---@return string
@@ -374,7 +371,7 @@ function json.format(str)
 
 			local x = string.format("%x", i)
 			local name, type = formatTypes[t](curr)
-			fig[x] = sub .. string.format(type and "e%s (%s)" or "e%s", name, type) .. sub .. "r"
+			fig[x] = string.format(type and "e%s (%s)r" or "e%sr", name, type)
 			converted = "${" .. x .. "}"
 		elseif t == "table" then
 			for k, v in pairs(curr) do
@@ -397,37 +394,37 @@ function json.format(str)
 		['"'] = function() isString = not isString end,
 		["'"] = function() isString = not isString end,
 
-		[sub] = function() isFigura = not isFigura end,
+		[""] = function() isFigura = not isFigura end,
 
 		["{"] = function(s)
 			if isString or isFigura then return s end
 
 			indent = indent + 1
-			return s .. "\n" .. string.rep(tab, indent)
+			return s .. "\n" .. string.rep("  ", indent)
 		end,
 		["["] = function(s)
 			if isString or isFigura then return s end
 
 			indent = indent + 1
-			return s .. "\n" .. string.rep(tab, indent)
+			return s .. "\n" .. string.rep("  ", indent)
 		end,
 		["}"] = function(s)
 			if isString or isFigura then return s end
 
 			indent = indent - 1
-			return "\n" .. string.rep(tab, indent) .. s
+			return "\n" .. string.rep("  ", indent) .. s
 		end,
 		["]"] = function(s)
 			if isString or isFigura then return s end
 
 			indent = indent - 1
-			return "\n" .. string.rep(tab, indent) .. s
+			return "\n" .. string.rep("  ", indent) .. s
 		end,
 
 		[","] = function(s)
 			if isString or isFigura then return s end
 
-			return s .. "\n" .. string.rep(tab, indent)
+			return s .. "\n" .. string.rep("  ", indent)
 		end,
 		[":"] = function(s)
 			if isString or isFigura then return s end
@@ -436,15 +433,15 @@ function json.format(str)
 		end,
 
 		["\n"] = function(s)
-			return s .. string.rep(tab, indent)
+			return s .. string.rep("  ", indent)
 		end,
 	}
 
 	str = str
-		:gsub(sub, "")                                             -- Remove all user-defined sub chars
+		:gsub("", "")                                             -- Remove all user-defined sub chars
 		:gsub('"%${(%x+)}"', fig)                                  -- Add formatted Figura types to json string
 		:gsub(".", function(s) return chars[s] and chars[s](s) or s end) -- Format json string
-		:gsub(sub, "§")                                            -- Replace sub chars with legacy formatting code
+		:gsub("", "§")                                            -- Replace sub chars with legacy formatting code
 
 	return str
 end
@@ -1628,15 +1625,32 @@ end
 ---@type Player[]
 local cachedPunches
 
----Gets the skull being held by the entity, if one is being held
----@param entity Entity
----@return FOXSkull.item?
-local function getHeldSkull(entity)
-	local main = entity --[[@as Player]]:getHeldItem()
-	local off = entity --[[@as Player]]:getHeldItem(true)
+---Gets all entities near the viewer
+local function getEntities()
+	local pos = viewer:getPos()
+	return world.getEntities(pos - 8, pos + 8)
+end
 
-	return main.id == "minecraft:player_head" and get(main, entity) or
-		off.id == "minecraft:player_head" and get(off, entity) or nil
+---Gets the skull being held by the entity, if one is being held
+---
+---If offhand is nil then both hands are checked. If offhand is a boolean then only one hand is checked
+---@param entity Entity.any
+---@param offhand boolean|nil
+---@return FOXSkull.item?
+local function getHeldSkull(entity, offhand)
+	if offhand == nil then
+		---@diagnostic disable-next-line: param-type-mismatch
+		local main = entity:getHeldItem()
+		---@diagnostic disable-next-line: param-type-mismatch
+		local off = entity:getHeldItem(true)
+
+		return main.id == "minecraft:player_head" and get(main, entity) or
+			off.id == "minecraft:player_head" and get(off, entity) or nil
+	else
+		---@diagnostic disable-next-line: param-type-mismatch
+		local item = entity:getHeldItem(offhand)
+		return item.id == "minecraft:player_head" and get(item, entity) or nil
+	end
 end
 
 ---Finds a player punching the skull
@@ -1646,8 +1660,9 @@ local function findPuncher(self)
 	if not cachedPunches then
 		cachedPunches = {}
 
-		for _, entity in pairs(world.getPlayers()) do
-			if entity:getSwingTime() == 1 then table.insert(cachedPunches, entity) end
+		for _, entity in pairs(getEntities()) do
+			---@diagnostic disable-next-line: undefined-field
+			if entity.getSwingTime and entity:getSwingTime() == 1 then table.insert(cachedPunches, entity) end
 		end
 	end
 
@@ -1655,7 +1670,7 @@ local function findPuncher(self)
 		if self --[[@as FOXSkull.block]].block and
 			entity:getTargetedBlock(true, 5):getPos() == self --[[@as FOXSkull.block]].block:getPos() then
 			return entity
-		elseif getHeldSkull(entity) == self then
+		elseif getHeldSkull(entity, entity:getSwingArm() == "OFF_HAND") == self then
 			return entity
 		end
 	end
