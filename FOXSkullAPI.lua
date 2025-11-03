@@ -361,7 +361,7 @@ local formatTypes = {
 
 ---Formats the given json and prettifies it
 ---@param str string
----@return string
+---@return string?
 function json.format(str)
 	local tbl = json.decode(str) -- Decode first
 
@@ -389,6 +389,7 @@ function json.format(str)
 		return converted
 	end
 	str = toJson(rawType(tbl))
+	if str == "{}" then return end
 
 	local indent = 0
 	local isString = false
@@ -708,6 +709,7 @@ local skull = {}
 ---@field isErrored boolean?
 ---@field tooltip string?
 ---@field tooltipOffset Vector2?
+---@field hasVars boolean?
 ---@field generatedItem FOXSkull.generatedItemStack
 ---@field vars table
 
@@ -967,12 +969,16 @@ end
 ---@param textures table
 ---@param i integer
 ---@param j integer
+---@param signature string
 ---@return string
-local function parseTextures(textures, i, j)
+local function parseTextures(textures, i, j, signature)
 	local data = ""
 	for k = math.max(i, 1), math.min(j, #textures) do
 		local texture = textures[k]
-		data = texture and data .. base64.decode(texture.value or texture.Value) or data
+		local sig = texture.signature or texture.Signature
+		if not signature or sig:find(signature) then
+			data = texture and data .. base64.decode(texture.value or texture.Value) or data
+		end
 	end
 	return data
 end
@@ -984,13 +990,16 @@ end
 ---If two integers are given, treats them as a range, returning those texture fields concatenated
 ---
 ---Concatenates all texture fields if no integers are given
+---
+---If a signature is provided, all textures without a matching signature will be skipped over
 ---@generic self
 ---@param self self
 ---@param i integer?
 ---@param j integer?
+---@param signature string?
 ---@return string
 ---@nodiscard
-function anyClass:getData(i, j)
+function anyClass:getData(i, j, signature)
 	i, j = i or 1, j or i or math.huge
 
 	local block = self --[[@as FOXSkull.block]].block
@@ -1001,7 +1010,7 @@ function anyClass:getData(i, j)
 	local textures = nbt.SkullOwner and nbt.SkullOwner.Properties and nbt.SkullOwner.Properties.textures or -- < 1.21.9
 		nbt.profile and nbt.profile.properties                                                           -- 1.21.9+
 
-	return textures and parseTextures(textures, i, j) or ""
+	return textures and parseTextures(textures, i, j, signature) or ""
 end
 
 --#ENDREGION
@@ -1363,8 +1372,9 @@ local function new(key, entity)
 			:setUUID(avatar:getUUID()),
 	}
 
-	local data = self:getData()
-	priv.vars = isJson(data) and json.decode(data) or {}
+	local data = self:getData(nil, nil, "FOXSkullAPI")
+	priv.hasVars = data ~= ""
+	priv.vars = priv.hasVars and isJson(data) and json.decode(data) or {}
 
 	self[1] = priv
 
@@ -1606,7 +1616,7 @@ function events.skull_render(delta, block, item, entity, context)
 
 	if priv.isErrored and not overlayBL then
 		overlay = facingSkull and errorOverlay or silentErrorOverlay
-	elseif client.isDebugOverlayEnabled() then
+	elseif priv.hasVars and client.isDebugOverlayEnabled() then
 		overlay = facingSkull and infoOverlay or silentInfoOverlay
 	elseif facingSkull then
 		overlay = hoverOverlay
@@ -1716,6 +1726,8 @@ local function skullTick()
 		local str = priv.isErrored and priv.tooltip or
 			client.isDebugOverlayEnabled() and json.format(json.encode(priv.vars)) or nil
 		priv.tooltip = str
+
+		priv.hasVars = str and true
 
 		if not str then return end
 		local off = client.getTextDimensions(str)
