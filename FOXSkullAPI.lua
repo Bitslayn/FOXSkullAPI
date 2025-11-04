@@ -98,7 +98,7 @@ function sound_m.__index(s, k)
 		stableSounds[k] = stableSounds[k] or check
 		return stableSounds[k]
 	end
-	return soundProxy[k] or sound_i(s, k)
+	return soundProxy[k] or check
 end
 
 ---Returns the sound with a matching name
