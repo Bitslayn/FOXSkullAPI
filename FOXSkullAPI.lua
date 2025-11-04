@@ -53,6 +53,51 @@ end
 -- end
 
 --#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Sound Listener ♡˚
+------------------------------------------------------------------------------------------------
+
+--#REGION Database
+
+---@type {[string]: Sound}
+local stableSounds = {}
+---@type {[Sound]: string}
+local soundNames = {}
+---@type {[string]: string|integer[]}
+local soundData = {}
+
+for name, data in pairs(avatar:getNBT().sounds) do
+	soundNames[sounds[name]] = name
+	soundData[name] = data
+end
+
+--#ENDREGION
+--#REGION Listener
+
+local sound_m = figuraMetatables.SoundAPI
+local sound_i = sound_m.__index
+
+---@class SoundAPI
+local soundProxy = {}
+
+function soundProxy:newSound(name, data)
+	self = sound_i(self, "newSound")(self, name, data)
+	soundNames[sounds[name]] = name
+	soundData[name] = data
+	return self
+end
+
+function sound_m.__index(s, k)
+	local check = sound_i(s, k)
+	if type(check) == "Sound" then
+		stableSounds[k] = stableSounds[k] or check
+		return stableSounds[k]
+	end
+	return soundProxy[k] or sound_i(s, k)
+end
+
+--#ENDREGION
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Base64 ♡˚
 ------------------------------------------------------------------------------------------------
 
@@ -188,6 +233,13 @@ local encodeTypes = {
 		end
 		return "Part", p
 	end,
+
+
+	---@param v Sound
+	Sound = function(v)
+		local n = soundNames[v]
+		return "Sound", { name = n, bytes = soundData[n] }
+	end,
 }
 
 ---Converts the given table into a JSON string, supporting Figura's non-primitive types
@@ -258,6 +310,13 @@ local decodeTypes = {
 			p = p[chld]
 		end
 		return p
+	end,
+	---@param v table<string, any>
+	---@return Sound
+	Sound = function(v)
+		if sounds[v.name] then return sounds[v.name] end
+		sounds:newSound(v.name, v.bytes)
+		return sounds[v.name]
 	end,
 }
 
@@ -357,6 +416,12 @@ local formatTypes = {
 	ModelPart = function(v)
 		return v:getName(), type(v)
 	end,
+
+
+	---@param v Sound
+	Sound = function(v)
+		return soundNames[v], "Sound"
+	end,
 }
 
 ---Formats the given table and returns a prettified string
@@ -446,10 +511,10 @@ function json.format(tbl)
 	}
 
 	str = str
-		:gsub("", "")                                             -- Remove all user-defined sub chars
-		:gsub('"%${(%x+)}"', fig)                                  -- Add formatted Figura types to json string
+		:gsub("", "")                                                 -- Remove all user-defined sub chars
+		:gsub('"%${(%x+)}"', fig)                                      -- Add formatted Figura types to json string
 		:gsub(pattern, function(s) return chars[s] and chars[s](s) or s end) -- Format json string
-		:gsub("", "§")                                            -- Replace sub chars with legacy formatting code
+		:gsub("", "§")                                                -- Replace sub chars with legacy formatting code
 
 	return str
 end
