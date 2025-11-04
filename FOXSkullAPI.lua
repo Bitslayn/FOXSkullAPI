@@ -102,19 +102,13 @@ function sound_m.__index(s, k)
 end
 
 ---Returns the sound with a matching name
----
----If copy is true then returns a copy of the sound rather than the original
 ---@param name string
----@param copy boolean?
-local function getSound(name, copy)
-	local sound
+local function getSoundCopy(name)
+	local success = pcall(function(k) return sound_i(sounds, k) end, name)
+	if not success then return end
 
-	local success = pcall(function(k) return sounds[k] end, name)
-	if success then
-		sound = copy and sound_i(sounds, name) or sounds[name]
-		soundNames[sound] = name
-	end
-
+	local sound = sound_i(sounds, name)
+	soundNames[sound] = name
 	return sound
 end
 
@@ -337,12 +331,8 @@ local decodeTypes = {
 	---@param v table<string, any>
 	---@return Sound
 	Sound = function(v)
-		local sound = getSound(v.name, true)
-		if not sound then
-			sounds:newSound(v.name, v.bytes)
-			sound = getSound(v.name, true)
-		end
-		return sound
+		sounds:newSound(v.name, v.bytes)
+		return getSoundCopy(v.name)
 	end,
 }
 
