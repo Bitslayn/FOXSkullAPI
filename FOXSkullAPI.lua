@@ -70,6 +70,12 @@ for name, data in pairs(avatar:getNBT().sounds) do
 	soundData[name] = data
 end
 
+function events.resource_reload()
+	for name in pairs(stableSounds) do
+		sounds:newSound(name, soundData[name])
+	end
+end
+
 --#ENDREGION
 --#REGION Listener
 
@@ -102,7 +108,7 @@ end
 ---@param copy boolean?
 local function getSound(name, copy)
 	local sound
-	
+
 	local success = pcall(function(k) return sounds[k] end, name)
 	if success then
 		sound = copy and sound_i(sounds, name) or sounds[name]
@@ -1860,6 +1866,13 @@ function events.skull_render()
 	end
 
 	remove(flushKey)
+	flushKey = nil
+end
+
+function events.resource_reload()
+	for key in pairs(all) do
+		remove(key)
+	end
 	flushKey = nil
 end
 
