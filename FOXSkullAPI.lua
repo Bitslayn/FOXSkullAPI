@@ -72,7 +72,12 @@ end
 
 function events.resource_reload()
 	for name in pairs(stableSounds) do
-		sounds:newSound(name, soundData[name])
+		if soundData[name] then
+			sounds:newSound(name, soundData[name])
+		else
+			stableSounds[name] = nil
+			soundData[name] = nil
+		end
 	end
 end
 
