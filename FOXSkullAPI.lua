@@ -314,7 +314,11 @@ local decodeTypes = {
 	---@param v table<string, any>
 	---@return Sound
 	Sound = function(v)
-		if sounds[v.name] then return sounds[v.name] end
+		local success, sound = pcall(function(k)
+			return sounds[k]
+		end, v.name)
+		if success then return sound end
+
 		sounds:newSound(v.name, v.bytes)
 		return sounds[v.name]
 	end,
