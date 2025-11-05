@@ -99,7 +99,7 @@ function events.resource_reload()
 	for name in pairs(stableSounds) do
 		if soundData[name] then
 			-- Refresh sound references on reload
-			
+
 			sounds:newSound(name, soundData[name])
 			stableSounds[name] = sound_i(sounds, name)
 		else
@@ -449,7 +449,7 @@ local formatTypes = {
 	end,
 	---@param v Texture
 	Texture = function(v)
-		return v:getName(), "Texture"
+		return v:getName() .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
 	end,
 }
 
