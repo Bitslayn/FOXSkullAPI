@@ -87,12 +87,12 @@ function soundProxy:newSound(name, data)
 end
 
 function sound_m.__index(s, k)
-	local check = sound_i(s, k)
-	if type(check) == "Sound" then
-		stableSounds[k] = stableSounds[k] or check
-		return stableSounds[k]
+	local returned = sound_i(s, k)
+	if type(returned) == "Sound" then
+		soundNames[returned] = k
+		return returned
 	end
-	return soundProxy[k] or check
+	return soundProxy[k] or returned
 end
 
 function events.resource_reload()
