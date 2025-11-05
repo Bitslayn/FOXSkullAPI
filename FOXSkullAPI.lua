@@ -58,6 +58,8 @@ end
 
 --#REGION Database
 
+---@type {[string]: Sound}
+local stableSounds = {}
 ---@type {[Sound]: string}
 local soundNames = {}
 ---@type {[string]: string|integer[]}
@@ -85,7 +87,28 @@ function soundProxy:newSound(name, data)
 end
 
 function sound_m.__index(s, k)
-	return soundProxy[k] or sound_i(s, k)
+	local check = sound_i(s, k)
+	if type(check) == "Sound" then
+		stableSounds[k] = stableSounds[k] or check
+		return stableSounds[k]
+	end
+	return soundProxy[k] or check
+end
+
+function events.resource_reload()
+	for name in pairs(stableSounds) do
+		if soundData[name] then
+			-- Refresh sound references on reload
+			
+			sounds:newSound(name, soundData[name])
+			stableSounds[name] = sound_i(sounds, name)
+		else
+			-- Dereferences sounds which cannot be reregistered for whatever reason (Errors may occur without this here)
+
+			stableSounds[name] = nil
+			soundData[name] = nil
+		end
+	end
 end
 
 --#ENDREGION
@@ -231,12 +254,13 @@ local encodeTypes = {
 	---@param v Sound
 	Sound = function(v)
 		local n = soundNames[v]
+		assert(n)
 		return "Sound", { name = n, bytes = soundData[n] }
 	end,
 	---@param v Texture
 	Texture = function(v)
-		return "Texture", { name = v:getName(), bytes = v:copy() }
-	end
+		return "Texture", { name = v:getName(), bytes = v:save() }
+	end,
 }
 
 ---Converts the given table into a JSON string, supporting Figura's non-primitive types
@@ -317,8 +341,8 @@ local decodeTypes = {
 	---@param v table<string, any>
 	---@return Texture
 	Texture = function(v)
-		return textures[v.name] or textures:newTexture(v.name, v.bytes)
-	end
+		return textures[v.name] or textures:read(v.name, v.bytes)
+	end,
 }
 
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
@@ -426,7 +450,7 @@ local formatTypes = {
 	---@param v Texture
 	Texture = function(v)
 		return v:getName(), "Texture"
-	end
+	end,
 }
 
 ---Formats the given table and returns a prettified string
