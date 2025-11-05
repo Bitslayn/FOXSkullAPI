@@ -672,9 +672,10 @@ end
 ---Sets the texture fields to the provided strings
 ---
 ---If no strings are provided, removes all textures on this item
+---@param signature string
 ---@param ... string
 ---@return self
-function itemGenerator:setTextures(...)
+function itemGenerator:setTextures(signature, ...)
 	local injest = { ... }
 	for k, v in ipairs(injest) do
 		injest[k] = not isBase64(v) and base64.encode(v) or v
@@ -684,8 +685,10 @@ function itemGenerator:setTextures(...)
 	local owner = self.data.SkullOwner
 	owner.Properties = {}
 	owner.Properties.textures = ... and parseJson(pack(false, "Value", table.unpack(injest)) --[[@as string]])
-	for _, tex in pairs(owner.Properties.textures) do
-		tex.Signature = __sign
+	if signature then
+		for _, tex in pairs(owner.Properties.textures) do
+			tex.Signature = signature
+		end
 	end
 	return self
 end
@@ -1205,7 +1208,7 @@ function anyClass:getItemStack(count, damage)
 	local priv = self[1]
 	-- n * 0.75; where n is the total chunk length after converting to Base64. n must be divisible by 4!
 
-	priv.generatedItem:setTextures(gsplit(json.encode(priv.vars), 32764 * 0.75))
+	priv.generatedItem:setTextures(__sign, gsplit(json.encode(priv.vars), 32764 * 0.75))
 	return world.newItem(tostring(priv.generatedItem), count, damage)
 end
 
