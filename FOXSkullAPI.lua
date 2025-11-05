@@ -58,8 +58,6 @@ end
 
 --#REGION Database
 
----@type {[string]: Sound}
-local stableSounds = {}
 ---@type {[Sound]: string}
 local soundNames = {}
 ---@type {[string]: string|integer[]}
@@ -68,17 +66,6 @@ local soundData = {}
 for name, data in pairs(avatar:getNBT().sounds) do
 	soundNames[sounds[name]] = name
 	soundData[name] = data
-end
-
-function events.resource_reload()
-	for name in pairs(stableSounds) do
-		if soundData[name] then
-			sounds:newSound(name, soundData[name])
-		else
-			stableSounds[name] = nil
-			soundData[name] = nil
-		end
-	end
 end
 
 --#ENDREGION
@@ -98,23 +85,7 @@ function soundProxy:newSound(name, data)
 end
 
 function sound_m.__index(s, k)
-	local check = sound_i(s, k)
-	if type(check) == "Sound" then
-		stableSounds[k] = stableSounds[k] or check
-		return stableSounds[k]
-	end
-	return soundProxy[k] or check
-end
-
----Returns the sound with a matching name
----@param name string
-local function getSoundCopy(name)
-	local success = pcall(function(k) return sound_i(sounds, k) end, name)
-	if not success then return end
-
-	local sound = sound_i(sounds, name)
-	soundNames[sound] = name
-	return sound
+	return soundProxy[k] or sound_i(s, k)
 end
 
 --#ENDREGION
@@ -337,7 +308,7 @@ local decodeTypes = {
 	---@return Sound
 	Sound = function(v)
 		sounds:newSound(v.name, v.bytes)
-		return getSoundCopy(v.name)
+		return sounds[v.name]
 	end,
 }
 
