@@ -233,6 +233,10 @@ local encodeTypes = {
 		local n = soundNames[v]
 		return "Sound", { name = n, bytes = soundData[n] }
 	end,
+	---@param v Texture
+	Texture = function(v)
+		return "Texture", { name = v:getName(), bytes = v:copy() }
+	end
 }
 
 ---Converts the given table into a JSON string, supporting Figura's non-primitive types
@@ -310,6 +314,11 @@ local decodeTypes = {
 		sounds:newSound(v.name, v.bytes)
 		return sounds[v.name]
 	end,
+	---@param v table<string, any>
+	---@return Texture
+	Texture = function(v)
+		return textures[v.name] or textures:newTexture(v.name, v.bytes)
+	end
 }
 
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
@@ -414,6 +423,10 @@ local formatTypes = {
 	Sound = function(v)
 		return soundNames[v], "Sound"
 	end,
+	---@param v Texture
+	Texture = function(v)
+		return v:getName(), "Texture"
+	end
 }
 
 ---Formats the given table and returns a prettified string
