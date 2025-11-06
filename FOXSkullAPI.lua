@@ -406,13 +406,6 @@ end
 --#ENDREGION
 --#REGION Fragment
 
--- JSON fragments aren't to be confused with splitting textures in a single skull, though this uses a similar concept
--- JSON fragments can exist in multiple skulls, and these skulls must be initialized for the json fragment to defragment itself
--- JSON fragments defragment on skull init. The skull doesn't need to be placed
--- All skulls to defragment a json will have access to its contents
--- Accessing the metatable of a fragment will let you view all fragment parts in order
--- After defragmentation, the fragment will be replaced with the original object, whether it be UserData or a table without a metatable
-
 ---@class FOXSkull.fragment
 ---@field name string
 ---@field uuid string
