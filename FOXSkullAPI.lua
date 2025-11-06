@@ -457,7 +457,7 @@ function json.defragment(frag, tbl, key)
 		self.count = self.count + 1
 		self.chunks[frag.pos] = frag.chunk
 	end
-	
+
 	if self.count < frag.len then return end
 
 	local defrag = table.concat(self.chunks)
@@ -1750,6 +1750,7 @@ function events.skull_render(delta, block, item, entity, context)
 	local time = client.getSystemTime()
 	priv.timestamp = time
 
+	---@diagnostic disable-next-line: assign-type-mismatch
 	self.context = context
 
 
