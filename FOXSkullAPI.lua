@@ -458,11 +458,13 @@ function json.defragment(frag, tbl, key)
 	end
 
 	local self = fragments[frag.uuid]
-
-	if not self.chunks[frag.pos] then self.count = self.count + 1 end
-	self.chunks[frag.pos] = frag.chunk
 	table.insert(self.sources, { tbl = tbl, key = key })
 
+	if not self.chunks[frag.pos] then
+		self.count = self.count + 1
+		self.chunks[frag.pos] = frag.chunk
+	end
+	
 	if self.count < frag.len then return end
 
 	local defrag = table.concat(self.chunks)
