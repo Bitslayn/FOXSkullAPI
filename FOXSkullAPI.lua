@@ -114,6 +114,15 @@ end
 --#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Texture Allocator ♡˚
+------------------------------------------------------------------------------------------------
+
+-- Textures need to be aliased by their name defined in the json
+-- Textures should have stable names which can be overwritten (_FOXSkullTex-n)
+-- Table to keep track of the number of skulls used. Skulls themselves will store which textures they use so they can decrease the number
+-- Textures which don't have any skulls using them will be removed from allocation until another skull allocates to the same texture name
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Split Strings ♡˚
 ------------------------------------------------------------------------------------------------
 
