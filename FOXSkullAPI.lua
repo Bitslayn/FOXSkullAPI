@@ -356,8 +356,7 @@ function json.decode(str)
 		local unpacked = {}
 
 		if curr.type and decodeTypes[curr.type] then
-			local success, value = pcall(decodeTypes[curr.type], curr.value)
-			unpacked = success and value or nil
+			unpacked = decodeTypes[curr.type](curr.value)
 		else
 			for k, v in pairs(curr) do
 				unpacked[k] = unpack(v)
@@ -1305,9 +1304,11 @@ local skullEvents = {
 ---@param self FOXSkull.any
 ---@param f function
 ---@param ... any
+---@return any
 local function try(self, f, ...)
+	---@type boolean, string
 	local success, result = pcall(f, ...)
-	if success then return end
+	if success then return result end
 
 	result = "§c[error] §f" .. avatar:getEntityName() .. "§c : " .. tostring(result)
 		:gsub("\9", "  ")
@@ -1460,7 +1461,8 @@ local function new(key, entity)
 	self.entity = entity or self.item and viewer
 	self.context = "OTHER"
 
-	local priv = {
+	---@diagnostic disable-next-line: missing-fields
+	self[1] = {
 		models = {},
 		visible = true,
 		uuid = client.intUUIDToString(client.generateUUID()),
@@ -1470,12 +1472,11 @@ local function new(key, entity)
 			:setItem("minecraft:player_head")
 			:setUUID(avatar:getUUID()),
 	}
+	local priv = self[1]
 
 	local data = self:getData(nil, nil, "FOXSkullAPI")
 	priv.hasVars = data ~= ""
-	priv.vars = priv.hasVars and isJson(data) and json.decode(data) or {}
-
-	self[1] = priv
+	priv.vars = priv.hasVars and isJson(data) and try(self, json.decode, data) or {}
 
 	if switch then
 		local id = getID(key, entity)
