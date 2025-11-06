@@ -424,6 +424,8 @@ end
 local fragments = {}
 
 ---Fragments the given value, returning each fragment at the specified byte size
+---
+---Byte count must be a multiple of 4
 ---@param name string
 ---@param value any
 ---@param bytes number
@@ -431,6 +433,7 @@ local fragments = {}
 function json.fragment(name, value, bytes)
 	assert(type(name) == "string", "String expected for param [1], got " .. type(name), 2)
 	assert(type(bytes) == "number", "Number expected for param [3], got " .. type(bytes), 2)
+	assert(bytes % 4 == 0, "Byte count must be a multiple of 4!", 2)
 
 	local uuid = client.intUUIDToString(client.generateUUID())
 	local chunks = { gsplit(json.encode(value), bytes * 0.75) }
