@@ -446,7 +446,9 @@ function json.fragment(name, value, bytes)
 	return table.unpack(out)
 end
 
----comment
+---Internal function which registers a fragment part to be defragmented
+---
+---This should never be called manually
 ---@param frag FOXSkull.fragment
 ---@param tbl table
 ---@param key any
@@ -463,9 +465,9 @@ function json.defragment(frag, tbl, key)
 
 	if self.count < frag.len then return end
 
-	local defrag = json.decode(table.concat(self.chunks))
+	local defrag = table.concat(self.chunks)
 	for _, source in pairs(self.sources) do
-		source.tbl[source.key] = defrag
+		source.tbl[source.key] = json.decode(defrag)
 	end
 end
 
