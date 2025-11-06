@@ -421,7 +421,7 @@ end
 ---@field pos integer
 
 ---@type {[string]: table}
-fragments = {}
+local fragments = {}
 
 ---Fragments the given value, returning each fragment at the specified byte size
 ---@param name string
