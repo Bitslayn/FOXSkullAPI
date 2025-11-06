@@ -114,6 +114,32 @@ end
 --#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Split Strings ♡˚
+------------------------------------------------------------------------------------------------
+
+---Splits the given string at `i` and returns two substrings
+---@param s string
+---@param i integer
+---@return string, string
+local function split(s, i)
+	return s:sub(1, i), s:sub(i + 1)
+end
+
+---Splits the given string at every `i` and returns the substrings
+---@param s string
+---@param i integer
+---@return string ...
+local function gsplit(s, i)
+	local t = {}
+	local a, b = s, s
+	repeat
+		b, a = split(a, i)
+		table.insert(t, b)
+	until a == ""
+	return table.unpack(t)
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Base64 ♡˚
 ------------------------------------------------------------------------------------------------
 
@@ -343,11 +369,16 @@ local decodeTypes = {
 	Texture = function(v)
 		return textures[v.name] or textures:read(v.name, v.bytes)
 	end,
+	---@param v table
+	---@return FOXSkull.fragment
+	Fragment = function(v)
+		return setmetatable(v, { __type = "Fragment" })
+	end,
 }
 
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
 ---@param str string
----@return table
+---@return any
 function json.decode(str)
 	local tbl = parseJson(str)
 
@@ -360,6 +391,9 @@ function json.decode(str)
 		else
 			for k, v in pairs(curr) do
 				unpacked[k] = unpack(v)
+				if type(unpacked[k]) == "Fragment" then
+					json.defragment(unpacked[k], unpacked, k)
+				end
 			end
 		end
 
@@ -367,6 +401,69 @@ function json.decode(str)
 	end
 
 	return unpack(tbl)
+end
+
+--#ENDREGION
+--#REGION Fragment
+
+-- JSON fragments aren't to be confused with splitting textures in a single skull, though this uses a similar concept
+-- JSON fragments can exist in multiple skulls, and these skulls must be initialized for the json fragment to defragment itself
+-- JSON fragments defragment on skull init. The skull doesn't need to be placed
+-- All skulls to defragment a json will have access to its contents
+-- Accessing the metatable of a fragment will let you view all fragment parts in order
+-- After defragmentation, the fragment will be replaced with the original object, whether it be UserData or a table without a metatable
+
+---@class FOXSkull.fragment
+---@field name string
+---@field uuid string
+---@field chunk string
+---@field len integer
+---@field pos integer
+
+---@type {[string]: table}
+fragments = {}
+
+---Fragments the given value, returning each fragment at the specified byte size
+---@param name string
+---@param value any
+---@param bytes number
+---@return {type: string, value: table<string, any>} ...
+function json.fragment(name, value, bytes)
+	assert(type(name) == "string", "String expected for param [1], got " .. type(name), 2)
+	assert(type(bytes) == "number", "Number expected for param [3], got " .. type(bytes), 2)
+
+	local uuid = client.intUUIDToString(client.generateUUID())
+	local chunks = { gsplit(json.encode(value), bytes * 0.75) }
+
+	local out = {}
+	for i, chunk in ipairs(chunks) do
+		out[i] = { type = "Fragment", value = { name = name, uuid = uuid, chunk = chunk, len = #chunks, pos = i } }
+	end
+
+	return table.unpack(out)
+end
+
+---comment
+---@param frag FOXSkull.fragment
+---@param tbl table
+---@param key any
+function json.defragment(frag, tbl, key)
+	if not fragments[frag.uuid] then
+		fragments[frag.uuid] = { chunks = {}, sources = {}, count = 0 }
+	end
+
+	local self = fragments[frag.uuid]
+
+	if not self.chunks[frag.pos] then self.count = self.count + 1 end
+	self.chunks[frag.pos] = frag.chunk
+	self.sources[frag.pos] = { tbl = tbl, key = key }
+
+	if self.count < frag.len then return end
+
+	local defrag = json.decode(table.concat(self.chunks))
+	for _, source in pairs(self.sources) do
+		source.tbl[source.key] = defrag
+	end
 end
 
 --#ENDREGION
@@ -449,6 +546,11 @@ local formatTypes = {
 	---@param v Texture
 	Texture = function(v)
 		return v:getName() .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
+	end,
+
+	---@param v FOXSkull.fragment
+	Fragment = function(v)
+		return v.name .. string.format(" (%s/%s)", v.pos, v.len), "Fragment"
 	end,
 }
 
@@ -548,32 +650,6 @@ function json.format(tbl)
 end
 
 --#ENDREGION
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ Utilities > Split Strings ♡˚
-------------------------------------------------------------------------------------------------
-
----Splits the given string at `i` and returns two substrings
----@param s string
----@param i integer
----@return string, string
-local function split(s, i)
-	return s:sub(1, i), s:sub(i + 1)
-end
-
----Splits the given string at every `i` and returns the substrings
----@param s string
----@param i integer
----@return string ...
-local function gsplit(s, i)
-	local t = {}
-	local a, b = s, s
-	repeat
-		b, a = split(a, i)
-		table.insert(t, b)
-	until a == ""
-	return table.unpack(t)
-end
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Item Generator ♡˚
@@ -1975,6 +2051,8 @@ end
 function skulls.setDefaultModel(model, context, copy)
 	replaceModel(defaultModels, context, model, copy)
 end
+
+skulls.fragment = json.fragment
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkulls > Return ♡˚
