@@ -461,15 +461,15 @@ function json.defragment(frag, tbl, key)
 
 	if not self.chunks[frag.pos] then self.count = self.count + 1 end
 	self.chunks[frag.pos] = frag.chunk
-	self.sources[frag.pos] = { tbl = tbl, key = key }
+	table.insert(self.sources, { tbl = tbl, key = key })
 
 	if self.count < frag.len then return end
 
 	local defrag = table.concat(self.chunks)
-	for k, source in pairs(self.sources) do
+	for _, source in pairs(self.sources) do
 		source.tbl[source.key] = json.decode(defrag)
-		self.sources[k] = nil
 	end
+	self.sources = {}
 end
 
 --#ENDREGION
