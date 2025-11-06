@@ -428,7 +428,7 @@ function json.fragment(name, value, bytes)
 	assert(type(bytes) == "number", "Number expected for param [3], got " .. type(bytes), 2)
 	assert(bytes % 4 == 0, "Byte count must be a multiple of 4!", 2)
 
-	local uuid = client.intUUIDToString(client.generateUUID())
+	local uuid = client.intUUIDToString(client.generateUUID()):match("^(.-)%-")
 	local chunks = { gsplit(json.encode(value), bytes * 0.75) }
 
 	local out = {}
