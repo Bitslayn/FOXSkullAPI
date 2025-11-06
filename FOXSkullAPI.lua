@@ -429,7 +429,7 @@ local fragments = {}
 ---@param name string
 ---@param value any
 ---@param bytes number
----@return {type: string, value: table<string, any>} ...
+---@return {type: string, value: FOXSkull.fragment}[]
 function json.fragment(name, value, bytes)
 	assert(type(name) == "string", "String expected for param [1], got " .. type(name), 2)
 	assert(type(bytes) == "number", "Number expected for param [3], got " .. type(bytes), 2)
@@ -443,7 +443,7 @@ function json.fragment(name, value, bytes)
 		out[i] = { type = "Fragment", value = { name = name, uuid = uuid, chunk = chunk, len = #chunks, pos = i } }
 	end
 
-	return table.unpack(out)
+	return out
 end
 
 ---Internal function which registers a fragment part to be defragmented
