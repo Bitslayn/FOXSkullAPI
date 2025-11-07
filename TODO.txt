@@ -4,7 +4,9 @@ bakedItem:rot(mode, rotation)
 bakedItem:pos(mode, position)
 bakedItem:scale(mode, scale)
 
--- Make bakery and baked item model injestion
 -- Make texture allocating and fragmentation less messy
+-- Fix unallocated textures not being replaced with a texture on allocation
+-- Add texture allocation queue
+-- Make bakery and baked item model injestion
 
 -- Work on the wiki

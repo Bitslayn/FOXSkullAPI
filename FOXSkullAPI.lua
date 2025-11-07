@@ -121,19 +121,19 @@ local textureLimit = 24
 
 ---@type {[string]: {texture: Texture, count: integer, skulls: {[FOXSkull.any]: true}, key: integer}}
 local textureMap = {}
-local textureKeys = {}
+---@type boolean[]
+local textureSlots = {}
 for i = 1, textureLimit do
-	textureKeys[i] = false
+	textureSlots[i] = false
 end
-
----@class FOXSkull.UnallocatedTexture
----@field name string
+---@type table<string, string>
+local textureAliases = {}
 
 local function addTexture(skull, name, bytes)
 	if not textureMap[name] then
 		---@type integer
 		local key
-		for k, v in pairs(textureKeys) do
+		for k, v in pairs(textureSlots) do
 			if not v then
 				key = k
 				break
@@ -141,13 +141,15 @@ local function addTexture(skull, name, bytes)
 		end
 
 		if not key then return end
-		textureKeys[key] = true
+
+		textureSlots[key] = true
 		textureMap[name] = {
 			texture = textures:read("_FOXSkullTex-" .. key, bytes),
 			count = 0,
 			skulls = {},
 			key = key,
 		}
+		textureAliases["_FOXSkullTex-" .. key] = name
 	end
 
 	local tbl = textureMap[name]
@@ -163,7 +165,7 @@ local function removeTextures(skull)
 			tbl.count = tbl.count - 1
 			if tbl.count == 0 then
 				textureMap[name] = nil
-				textureKeys[tbl.key] = false
+				textureSlots[tbl.key] = false
 			end
 		end
 	end
@@ -239,6 +241,16 @@ end
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > JSON ♡˚
 ------------------------------------------------------------------------------------------------
+
+---@alias FOXSkullAPI.JSON.Vector number[]
+---@alias FOXSkullAPI.JSON.Matrix number[][]
+---@alias FOXSkullAPI.JSON.Entity string
+---@alias FOXSkullAPI.JSON.Block {state: string, pos: [number, number, number]}
+---@alias FOXSkullAPI.JSON.Item {stack: string, count: integer, damage: integer}
+---@alias FOXSkullAPI.JSON.Part string[]
+---@alias FOXSkullAPI.JSON.Sound {name: string, bytes: string|integer[]}
+---@alias FOXSkullAPI.JSON.Texture {name: string, bytes: string|integer[]}
+---@alias FOXSkullAPI.JSON.Fragment {name: string, uuid: string, chunk: string, len: integer, pos: integer}
 
 local json = {}
 
@@ -421,12 +433,12 @@ local decodeTypes = {
 		return sounds[v.name]
 	end,
 	---@param v table<string, any>
-	---@return FOXSkull.UnallocatedTexture
+	---@return FOXSkullAPI.JSON.Texture
 	Texture = function(v)
 		return setmetatable(v, { __type = "UnallocatedTexture" })
 	end,
 	---@param v table
-	---@return FOXSkull.Fragment
+	---@return FOXSkullAPI.JSON.Fragment
 	Fragment = function(v)
 		return setmetatable(v, { __type = "Fragment" })
 	end,
@@ -466,13 +478,6 @@ end
 --#ENDREGION
 --#REGION Fragment
 
----@class FOXSkull.Fragment
----@field name string
----@field uuid string
----@field chunk string
----@field len integer
----@field pos integer
-
 ---@type {[string]: table}
 local fragments = {}
 
@@ -482,7 +487,7 @@ local fragments = {}
 ---@param name string
 ---@param value any
 ---@param bytes number
----@return {type: string, value: FOXSkull.Fragment}[]
+---@return {type: string, value: FOXSkullAPI.JSON.Fragment}[]
 function json.fragment(name, value, bytes)
 	assert(type(name) == "string", "String expected for param [1], got " .. type(name), 2)
 	assert(type(bytes) == "number", "Number expected for param [3], got " .. type(bytes), 2)
@@ -502,7 +507,7 @@ end
 ---Internal function which registers a fragment part to be defragmented
 ---
 ---This should never be called manually
----@param frag FOXSkull.Fragment
+---@param frag FOXSkullAPI.JSON.Fragment
 ---@param tbl table
 ---@param key any
 function json.defragment(frag, tbl, key)
@@ -606,14 +611,14 @@ local formatTypes = {
 	end,
 	---@param v Texture
 	Texture = function(v)
-		return v:getName() .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
+		return textureAliases[v:getName()] .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
 	end,
-	---@param v FOXSkull.UnallocatedTexture
+	---@param v FOXSkullAPI.JSON.Texture
 	UnallocatedTexture = function(v)
 		return v.name, "UnallocatedTexture"
 	end,
 
-	---@param v FOXSkull.Fragment
+	---@param v FOXSkullAPI.JSON.Fragment
 	Fragment = function(v)
 		return v.name .. string.format(" (%s/%s)", v.pos, v.len), "Fragment"
 	end,
