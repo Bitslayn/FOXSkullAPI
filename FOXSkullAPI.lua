@@ -423,7 +423,7 @@ local decodeTypes = {
 	---@param v table<string, any>
 	---@return FOXSkull.UnallocatedTexture
 	Texture = function(v)
-		return setmetatable({ name = v.name }, { __type = "UnallocatedTexture" })
+		return setmetatable(v, { __type = "UnallocatedTexture" })
 	end,
 	---@param v table
 	---@return FOXSkull.Fragment
