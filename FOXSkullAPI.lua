@@ -117,58 +117,129 @@ end
 --#REGION ˚♡ Utilities > Texture Allocator ♡˚
 ------------------------------------------------------------------------------------------------
 
-local textureLimit = 24
+---@class FOXSkull.AllocatedTexture
+---@field name string
+---@field bytes string|integer[]
+---@field count integer
+---@field sources {[table]: any}
+---@field slot integer
+---@field texture Texture
 
----@type {[string]: {texture: Texture, count: integer, skulls: {[FOXSkull.any]: true}, key: integer}}
-local textureMap = {}
----@type boolean[]
-local textureSlots = {}
-for i = 1, textureLimit do
-	textureSlots[i] = false
-end
 ---@type table<string, string>
 local textureAliases = {}
 
-local function addTexture(skull, name, bytes)
-	if not textureMap[name] then
-		---@type integer
-		local key
-		for k, v in pairs(textureSlots) do
-			if not v then
-				key = k
-				break
-			end
+local textureLimitCount = 2
+local texturesUsedCount = 0
+
+---@type string[]
+local textureQueueMap = {}
+---@type table<string, FOXSkull.AllocatedTexture>
+local textureQueue = {}
+---@type string[]
+local texturesUsedMap = {}
+---@type table<string, FOXSkull.AllocatedTexture>
+local texturesUsed = {}
+
+local function queueTick()
+	if not textureQueueMap[1] or texturesUsedCount == textureLimitCount then return end
+
+	local name = textureQueueMap[1]
+	local self = textureQueue[name]
+	table.remove(textureQueueMap, 1)
+	if not self then return end
+
+	---@type integer
+	local slot
+	for i = 1, textureLimitCount do
+		if not texturesUsedMap[i] then
+			slot = i
+			texturesUsedCount = texturesUsedCount + 1
+			break
 		end
-
-		if not key then return end
-
-		textureSlots[key] = true
-		textureMap[name] = {
-			texture = textures:read("_FOXSkullTex-" .. key, bytes),
-			count = 0,
-			skulls = {},
-			key = key,
-		}
-		textureAliases["_FOXSkullTex-" .. key] = name
 	end
 
-	local tbl = textureMap[name]
-	tbl.count = tbl.count + 1
-	tbl.skulls[skull] = true
+	texturesUsedMap[slot] = name
+	texturesUsed[name] = self
+	textureQueue[name] = nil
 
-	return tbl.texture
+	self.slot = slot
+	self.texture = textures:read("_FOXSkullTex-" .. slot, self.bytes)
+	textureAliases["_FOXSkullTex-" .. slot] = name
+
+	for _, source in pairs(self.sources) do
+		source.tbl[source.key] = self.texture
+	end
+	self.sources = {}
 end
 
-local function removeTextures(skull)
-	for name, tbl in pairs(textureMap) do
-		if tbl.skulls and tbl.skulls[skull] then
-			tbl.count = tbl.count - 1
-			if tbl.count == 0 then
-				textureMap[name] = nil
-				textureSlots[tbl.key] = false
-			end
-		end
+---Queues a texture to be allocated as soon as an opening becomes available
+---@param name string
+---@param bytes string|integer[]
+---@param tbl table
+---@param key any
+local function queueTexture(name, bytes, tbl, key)
+	local isAllocated = texturesUsed[name]
+
+	if not (textureQueue[name] or isAllocated) then
+		textureQueue[name] = {
+			name = name,
+			bytes = bytes,
+			count = 0,
+			sources = {},
+			slot = nil,
+			texture = nil,
+		}
+		table.insert(textureQueueMap, name)
 	end
+
+	local self = textureQueue[name] or texturesUsed[name]
+	self.count = self.count + 1
+	if isAllocated then
+		tbl[key] = self.texture
+	else
+		table.insert(self.sources, { tbl = tbl, key = key })
+	end
+end
+
+---Searches for textures contained in this skull's vars and removes them
+---@param vars table
+local function removeTextures(vars)
+	local function search(curr)
+		---@type FOXSkull.AllocatedTexture
+		local self
+
+		local t = type(curr)
+		if t == "table" then
+			for _, value in pairs(curr) do
+				search(value)
+			end
+		elseif t == "Texture" then
+			self = texturesUsed[textureAliases[curr:getName()]]
+		elseif t == "UnallocatedTexture" then
+			self = textureQueue[curr.name]
+		end
+
+		if not self then return end
+		self.count = self.count - 1
+		print(self.name, self.count)
+
+		if self.count ~= 0 then return end
+
+		if self.slot then
+			texturesUsed[self.name] = nil
+			texturesUsedMap[self.slot] = nil
+
+			texturesUsedCount = texturesUsedCount - 1
+
+			print("Removed allocated texture")
+		else
+			textureQueue[self.name] = nil
+
+			print("Removed queued texture")
+		end
+		print(texturesUsedCount)
+	end
+	search(vars)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -447,7 +518,7 @@ local decodeTypes = {
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
 ---@param str string
 ---@return any
-function json.decode(str, skull)
+function json.decode(str)
 	local tbl = parseJson(str)
 
 	local function unpack(curr)
@@ -462,9 +533,8 @@ function json.decode(str, skull)
 
 				if type(unpacked[k]) == "Fragment" then
 					json.defragment(unpacked[k], unpacked, k)
-				end
-				if type(unpacked[k]) == "UnallocatedTexture" then
-					unpacked[k] = addTexture(skull, unpacked[k].name, unpacked[k].bytes) or unpacked[k]
+				elseif type(unpacked[k]) == "UnallocatedTexture" then
+					queueTexture(unpacked[k].name, unpacked[k].bytes, unpacked, k)
 				end
 			end
 		end
@@ -528,6 +598,9 @@ function json.defragment(frag, tbl, key)
 	local defrag = table.concat(self.chunks)
 	for _, source in pairs(self.sources) do
 		source.tbl[source.key] = json.decode(defrag)
+		if type(source.tbl[source.key]) == "UnallocatedTexture" then
+			queueTexture(source.tbl[source.key].name, source.tbl[source.key].bytes, source.tbl, source.key)
+		end
 	end
 	self.sources = {}
 end
@@ -611,7 +684,9 @@ local formatTypes = {
 	end,
 	---@param v Texture
 	Texture = function(v)
-		return textureAliases[v:getName()] .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
+		-- local name = textureAliases[v:getName()]
+		local name = v:getName()
+		return name .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
 	end,
 	---@param v FOXSkullAPI.JSON.Texture
 	UnallocatedTexture = function(v)
@@ -1648,7 +1723,7 @@ local function remove(key, entity)
 	if not self then return end
 
 	skullInit(self, false)
-	removeTextures(self)
+	removeTextures(self[1].vars)
 
 	local priv = self[1]
 	uuids[priv.uuid] = nil
@@ -1992,11 +2067,13 @@ local function skullTick()
 end
 
 function events.tick()
+	queueTick()
 	skullTick()
 end
 
 function events.world_tick()
 	if player:isLoaded() then return end
+	queueTick()
 	skullTick()
 end
 
