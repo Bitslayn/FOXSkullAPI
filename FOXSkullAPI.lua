@@ -128,7 +128,7 @@ end
 ---@type table<string, string>
 local textureAliases = {}
 
-local textureLimitCount = 2
+local textureLimitCount = 24
 local texturesUsedCount = 0
 
 ---@type string[]
@@ -221,7 +221,6 @@ local function removeTextures(vars)
 
 		if not self then return end
 		self.count = self.count - 1
-		print(self.name, self.count)
 
 		if self.count ~= 0 then return end
 
@@ -230,14 +229,9 @@ local function removeTextures(vars)
 			texturesUsedMap[self.slot] = nil
 
 			texturesUsedCount = texturesUsedCount - 1
-
-			print("Removed allocated texture")
 		else
 			textureQueue[self.name] = nil
-
-			print("Removed queued texture")
 		end
-		print(texturesUsedCount)
 	end
 	search(vars)
 end
