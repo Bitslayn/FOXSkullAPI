@@ -678,9 +678,7 @@ local formatTypes = {
 	end,
 	---@param v Texture
 	Texture = function(v)
-		-- local name = textureAliases[v:getName()]
-		local name = v:getName()
-		return name .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
+		return textureAliases[v:getName()] .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
 	end,
 	---@param v FOXSkullAPI.JSON.Texture
 	UnallocatedTexture = function(v)
