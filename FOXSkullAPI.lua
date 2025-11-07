@@ -117,10 +117,57 @@ end
 --#REGION ˚♡ Utilities > Texture Allocator ♡˚
 ------------------------------------------------------------------------------------------------
 
--- Textures need to be aliased by their name defined in the json
--- Textures should have stable names which can be overwritten (_FOXSkullTex-n)
--- Table to keep track of the number of skulls used. Skulls themselves will store which textures they use so they can decrease the number
--- Textures which don't have any skulls using them will be removed from allocation until another skull allocates to the same texture name
+local textureLimit = 24
+
+---@type {[string]: {texture: Texture, count: integer, skulls: {[FOXSkull.any]: true}, key: integer}}
+local textureMap = {}
+local textureKeys = {}
+for i = 1, textureLimit do
+	textureKeys[i] = false
+end
+
+---@class FOXSkull.UnallocatedTexture
+---@field name string
+
+local function addTexture(skull, name, bytes)
+	if not textureMap[name] then
+		---@type integer
+		local key
+		for k, v in pairs(textureKeys) do
+			if not v then
+				key = k
+				break
+			end
+		end
+
+		if not key then return end
+		textureKeys[key] = true
+		textureMap[name] = {
+			texture = textures:read("_FOXSkullTex-" .. key, bytes),
+			count = 0,
+			skulls = {},
+			key = key,
+		}
+	end
+
+	local tbl = textureMap[name]
+	tbl.count = tbl.count + 1
+	tbl.skulls[skull] = true
+
+	return tbl.texture
+end
+
+local function removeTextures(skull)
+	for name, tbl in pairs(textureMap) do
+		if tbl.skulls and tbl.skulls[skull] then
+			tbl.count = tbl.count - 1
+			if tbl.count == 0 then
+				textureMap[name] = nil
+				textureKeys[tbl.key] = false
+			end
+		end
+	end
+end
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Split Strings ♡˚
@@ -374,12 +421,12 @@ local decodeTypes = {
 		return sounds[v.name]
 	end,
 	---@param v table<string, any>
-	---@return Texture
+	---@return FOXSkull.UnallocatedTexture
 	Texture = function(v)
-		return textures[v.name] or textures:read(v.name, v.bytes)
+		return setmetatable({ name = v.name }, { __type = "UnallocatedTexture" })
 	end,
 	---@param v table
-	---@return FOXSkull.fragment
+	---@return FOXSkull.Fragment
 	Fragment = function(v)
 		return setmetatable(v, { __type = "Fragment" })
 	end,
@@ -388,7 +435,7 @@ local decodeTypes = {
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
 ---@param str string
 ---@return any
-function json.decode(str)
+function json.decode(str, skull)
 	local tbl = parseJson(str)
 
 	local function unpack(curr)
@@ -400,8 +447,12 @@ function json.decode(str)
 		else
 			for k, v in pairs(curr) do
 				unpacked[k] = unpack(v)
+
 				if type(unpacked[k]) == "Fragment" then
 					json.defragment(unpacked[k], unpacked, k)
+				end
+				if type(unpacked[k]) == "UnallocatedTexture" then
+					unpacked[k] = addTexture(skull, unpacked[k].name, unpacked[k].bytes) or unpacked[k]
 				end
 			end
 		end
@@ -415,7 +466,7 @@ end
 --#ENDREGION
 --#REGION Fragment
 
----@class FOXSkull.fragment
+---@class FOXSkull.Fragment
 ---@field name string
 ---@field uuid string
 ---@field chunk string
@@ -431,7 +482,7 @@ local fragments = {}
 ---@param name string
 ---@param value any
 ---@param bytes number
----@return {type: string, value: FOXSkull.fragment}[]
+---@return {type: string, value: FOXSkull.Fragment}[]
 function json.fragment(name, value, bytes)
 	assert(type(name) == "string", "String expected for param [1], got " .. type(name), 2)
 	assert(type(bytes) == "number", "Number expected for param [3], got " .. type(bytes), 2)
@@ -451,7 +502,7 @@ end
 ---Internal function which registers a fragment part to be defragmented
 ---
 ---This should never be called manually
----@param frag FOXSkull.fragment
+---@param frag FOXSkull.Fragment
 ---@param tbl table
 ---@param key any
 function json.defragment(frag, tbl, key)
@@ -557,8 +608,12 @@ local formatTypes = {
 	Texture = function(v)
 		return v:getName() .. string.format(" (%sx%s)", v:getDimensions():unpack()), "Texture"
 	end,
+	---@param v FOXSkull.UnallocatedTexture
+	UnallocatedTexture = function(v)
+		return v.name, "UnallocatedTexture"
+	end,
 
-	---@param v FOXSkull.fragment
+	---@param v FOXSkull.Fragment
 	Fragment = function(v)
 		return v.name .. string.format(" (%s/%s)", v.pos, v.len), "Fragment"
 	end,
@@ -1562,7 +1617,7 @@ local function new(key, entity)
 
 	local data = self:getData(nil, nil, "FOXSkullAPI")
 	priv.hasVars = data ~= ""
-	priv.vars = priv.hasVars and isJson(data) and try(self, json.decode, data) or {}
+	priv.vars = priv.hasVars and isJson(data) and try(self, json.decode, data, self) or {}
 
 	if switch then
 		local id = getID(key, entity)
@@ -1588,6 +1643,7 @@ local function remove(key, entity)
 	if not self then return end
 
 	skullInit(self, false)
+	removeTextures(self)
 
 	local priv = self[1]
 	uuids[priv.uuid] = nil
