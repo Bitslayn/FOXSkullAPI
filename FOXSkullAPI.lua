@@ -2054,7 +2054,7 @@ end
 
 ---@type FOXSkull.key.internalID
 local flushKey
-function events.world_render()
+local function flushRender()
 	flushKey = next(all, flushKey)
 	local self = all[flushKey]
 	if not self then return end
@@ -2071,6 +2071,15 @@ function events.world_render()
 
 	remove(flushKey)
 	flushKey = nil
+end
+
+function events.render()
+	flushRender()
+end
+
+function events.world_render()
+	if player:isLoaded() then return end
+	flushRender()
 end
 
 function events.resource_reload()
