@@ -2054,7 +2054,7 @@ end
 
 ---@type FOXSkull.key.internalID
 local flushKey
-function events.skull_render()
+function events.world_render()
 	flushKey = next(all, flushKey)
 	local self = all[flushKey]
 	if not self then return end
