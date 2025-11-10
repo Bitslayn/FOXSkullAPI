@@ -949,7 +949,7 @@ end
 ---Replaces the model of the provided table with a new model, removing the old one
 ---@param models FOXSkull.models.any
 ---@param context FOXSkull.context.any|FOXSkull.context.any[]?
----@param model ModelPart|ModelPart[]?
+---@param model any?
 ---@param copy boolean?
 local function replaceModel(models, context, model, copy)
 	context = not context and { "OTHER" } or type(context) == "table" and context or { context }
@@ -967,9 +967,17 @@ local function replaceModel(models, context, model, copy)
 		models[ctx] = copy and copyModel(mdp) or mdp
 	end
 
-	if type(model) == "table" then
-		for ctx, mdp in pairs(model) do
-			setModel(ctx, mdp)
+	local meta = getmetatable(model)
+
+	if meta and type(meta["FOXSkull$model"]) == "string" then
+		if meta["FOXSkull$contexts"] then
+			for ctx, key in pairs(meta["FOXSkull$contexts"]) do
+				setModel(ctx, model[meta["FOXSkull$model"]][key])
+			end
+		else
+			for ctx, mdp in pairs(model[meta["FOXSkull$model"]]) do
+				setModel(ctx, mdp)
+			end
 		end
 	else
 		for _, ctx in pairs(context) do
@@ -1153,9 +1161,9 @@ end
 ---@param context FOXSkull.context.any|FOXSkull.context.any[]? Defaults to "OTHER". Sets which render context this model is for
 ---@param copy boolean? Defaults to true. If the modelpart should be copied or injested
 ---@return self
----@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.context.block|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.block
----@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.context.item|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.item
----@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.context.any|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.any
+---@overload fun(self: FOXSkull.block, model: any?, context: FOXSkull.context.block|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: any?, context: FOXSkull.context.item|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: any?, context: FOXSkull.context.any|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.any
 function anyClass:setModel(model, context, copy)
 	replaceModel(self[1].models, context, model, copy)
 	return self
@@ -1167,9 +1175,9 @@ end
 ---@param context FOXSkull.context.any|FOXSkull.context.any[]? Defaults to "OTHER". Sets which render context this model is for
 ---@param copy boolean? Defaults to true. If the modelpart should be copied or injested
 ---@return self
----@overload fun(self: FOXSkull.block, model: ModelPart?, context: FOXSkull.context.block|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.block
----@overload fun(self: FOXSkull.item, model: ModelPart?, context: FOXSkull.context.item|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.item
----@overload fun(self: FOXSkull.any, model: ModelPart?, context: FOXSkull.context.any|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.any
+---@overload fun(self: FOXSkull.block, model: any?, context: FOXSkull.context.block|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.block
+---@overload fun(self: FOXSkull.item, model: any?, context: FOXSkull.context.item|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.item
+---@overload fun(self: FOXSkull.any, model: any?, context: FOXSkull.context.any|FOXSkull.context.block[]?, copy: boolean?): FOXSkull.any
 function anyClass:model(model, context, copy)
 	replaceModel(self[1].models, context, model, copy)
 	return self
