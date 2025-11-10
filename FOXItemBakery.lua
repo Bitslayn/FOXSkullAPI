@@ -144,10 +144,13 @@ local extruded = {}
 
 ---Bakes a texture into an extruded model
 ---@param tex Texture
+---@param u integer
+---@param v integer
+---@param w integer
+---@param h integer
 ---@return ModelPart
-local function bakeExtruded(tex)
+local function bakeExtruded(tex, u, v, w, h)
 	local regions = {}
-	local w, h = tex:getDimensions():unpack()
 
 	local pos
 	local len = 0
@@ -162,7 +165,9 @@ local function bakeExtruded(tex)
 
 	-- Expand regions horizontally
 
-	tex:applyFunc(nil, nil, w, h, function(col, x, y)
+	tex:applyFunc(u, v, w, h, function(col, x, y)
+		x = x - u
+		y = y - v
 		if pos and col.a == 0 or (x == 0 and len > 0) then
 			push(x, y)
 
@@ -182,11 +187,11 @@ local function bakeExtruded(tex)
 		local a, b = regions[i - 1], regions[i]
 		if not (a and b) then goto continue end
 
-		for k, v in pairs(a) do
-			if b[k] and b[k].wid == v.wid then
-				v.hei = v.hei + 1
-				a[k] = nil
-				b[k] = v
+		for key, val in pairs(a) do
+			if b[key] and b[key].wid == val.wid then
+				val.hei = val.hei + 1
+				a[key] = nil
+				b[key] = val
 			end
 		end
 
@@ -194,18 +199,19 @@ local function bakeExtruded(tex)
 	end
 
 	local model = models:newPart(tex:getName())
+	local t_w, t_h = tex:getDimensions():unpack()
 
 	local i = 0
 	for _, tbl in pairs(regions) do
-		for _, v in pairs(tbl) do
-			local x, y, wid, hei = v.x, v.y, v.wid, v.hei
+		for _, val in pairs(tbl) do
+			local x, y, wid, hei = val.x, val.y, val.wid, val.hei
 			i = i + 1
 
 			model:newSprite("up-" .. i)
 				:pos(-x, -y, 1)
 				:rot(-90, -180, -180)
-				:texture(tex, w, h)
-				:uvPixels(x, y)
+				:texture(tex, t_w, t_h)
+				:uvPixels(x + u, y + v)
 				:size(wid, 1)
 				:region(wid, 1)
 				:renderType("TRANSLUCENT_CULL")
@@ -213,8 +219,8 @@ local function bakeExtruded(tex)
 			model:newSprite("down-" .. i)
 				:pos(-x, -y - hei, 0)
 				:rot(-90, 0, 0)
-				:texture(tex, w, h)
-				:uvPixels(x, y + hei - 1)
+				:texture(tex, t_w, t_h)
+				:uvPixels(x + u, y + hei - 1 + v)
 				:size(wid, 1)
 				:region(wid, 1)
 				:renderType("TRANSLUCENT_CULL")
@@ -222,8 +228,8 @@ local function bakeExtruded(tex)
 			model:newSprite("east-" .. i)
 				:pos(-x, -y, 1)
 				:rot(0, -90, 0)
-				:texture(tex, w, h)
-				:uvPixels(x, y)
+				:texture(tex, t_w, t_h)
+				:uvPixels(x + u, y + v)
 				:size(1, hei)
 				:region(1, hei)
 				:renderType("TRANSLUCENT_CULL")
@@ -231,8 +237,8 @@ local function bakeExtruded(tex)
 			model:newSprite("west-" .. i)
 				:pos(-x - wid, -y, 0)
 				:rot(0, 90, 0)
-				:texture(tex, w, h)
-				:uvPixels(x + wid - 1, y)
+				:texture(tex, t_w, t_h)
+				:uvPixels(x + wid - 1 + u, y + v)
 				:size(1, hei)
 				:region(1, hei)
 				:renderType("TRANSLUCENT_CULL")
@@ -240,7 +246,8 @@ local function bakeExtruded(tex)
 	end
 
 	model:newSprite("north")
-		:texture(tex, w, h)
+		:texture(tex, t_w, t_h)
+		:uvPixels(u, v)
 		:size(w, h)
 		:region(w, h)
 		:renderType("TRANSLUCENT_CULL")
@@ -248,7 +255,8 @@ local function bakeExtruded(tex)
 	model:newSprite("south")
 		:pos(-w, 0, 1)
 		:rot(0, 180, 0)
-		:texture(tex, w, h)
+		:texture(tex, t_w, t_h)
+		:uvPixels(t_w - w + u, v)
 		:size(w, h)
 		:region(-w, h)
 		:renderType("TRANSLUCENT_CULL")
@@ -257,29 +265,29 @@ local function bakeExtruded(tex)
 	return extruded[tex]
 end
 
----Returns the extruded model from cache, or bakes this model
----@param tex any
----@return ModelPart
-local function getExtruded(tex)
-	return extruded[tex] or bakeExtruded(tex)
-end
-
 --#ENDREGION
 --#REGION Flat
 
----@type table<Texture, ModelPart>
+---@type table<string, ModelPart>
 local flat = {}
 
 ---Bakes a texture into a flat model
 ---@param tex Texture
+---@param u integer
+---@param v integer
+---@param w integer
+---@param h integer
 ---@return ModelPart
-local function bakeFlat(tex)
-	local w, h = tex:getDimensions():unpack()
+local function bakeFlat(tex, u, v, w, h)
+	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
+	if flat[key] then return flat[key] end
 
 	local model = models:newPart(tex:getName())
+	local t_w, t_h = tex:getDimensions():unpack()
 
 	local sprite = model:newSprite("north")
-		:texture(tex, w, h)
+		:texture(tex, t_w, t_h)
+		:uvPixels(u, v)
 		:size(w, h)
 		:region(w, h)
 		:renderType("TRANSLUCENT_CULL")
@@ -288,15 +296,8 @@ local function bakeFlat(tex)
 		vert:setNormal(0, -1, 0)
 	end
 
-	flat[tex] = model
-	return flat[tex]
-end
-
----Returns the flat model from cache, or bakes this model
----@param tex any
----@return ModelPart
-local function getFlat(tex)
-	return flat[tex] or bakeFlat(tex)
+	flat[key] = model
+	return flat[key]
 end
 
 --#ENDREGION
@@ -310,14 +311,57 @@ end
 ---@class FOXItemBakery
 local bakery = {}
 
+---@class FOXItemBakery.item
+---@field parts table<ItemTask.displayMode, ModelPart>
+---@field texture Texture
+---@field u integer
+---@field v integer
+---@field w integer
+---@field h integer
+---@field queue boolean?
+local class = {
+	["FOXSkull$model"] = "parts",
+	["FOXSkull$contexts"] = {
+		BLOCK = "FIXED",
+		OTHER = "GUI",
+		FIRST_PERSON_LEFT_HAND = "FIRST_PERSON_LEFT_HAND",
+		FIRST_PERSON_RIGHT_HAND = "FIRST_PERSON_RIGHT_HAND",
+		THIRD_PERSON_LEFT_HAND = "THIRD_PERSON_LEFT_HAND",
+		THIRD_PERSON_RIGHT_HAND = "THIRD_PERSON_RIGHT_HAND",
+		HEAD = "HEAD",
+		GUI = "GUI",
+		GROUND = "GROUND",
+		FIXED = "FIXED",
+	},
+}
+class.__index = class
+
+---Takes a texture and returns a table of extruded item models of different display contexts
+---@param tex Texture
+---@param pose FOXItemBakery.pose?
+---@return FOXItemBakery.item?
+function bakery.newItem(tex, pose)
+	local self = setmetatable({ parts = {} }, class)
+
+	if not tex then return end
+	self:setPose(pose)
+		:setUV(tex)
+
+	return self
+end
+
+------------------------------------------------------------------------------------------------
+--#REGION ˚♡ Class > Update Matrices ♡˚
+------------------------------------------------------------------------------------------------
+
 ---@type FOXItemBakery.item[]
-local queue = {}
+local updateQueue = {}
 
 function events.world_render()
-	for _, self in pairs(queue) do
+	for _, self in pairs(updateQueue) do
 		self.queue = nil
 
-		local w, h = self.texture:getDimensions():unpack()
+		local w, h = self.w, self.h
 		local res = 1 / (h / 16)
 
 		for k, v in pairs(self.pose) do
@@ -340,46 +384,19 @@ function events.world_render()
 	end
 end
 
----Copies the tasks from the source model to the destination model
----
----This is a backport of a built-in 0.1.6 feature
----@param source ModelPart
----@param dest ModelPart
-local function copyTasks(source, dest)
-	for _, task in pairs(source:getTask()) do
-		dest:addTask(task)
-	end
-end
-
----@class FOXItemBakery.item
----@field parts table<ItemTask.displayMode, ModelPart>
----@field queue boolean?
-local class = {
-	["FOXSkull$model"] = "parts",
-	["FOXSkull$contexts"] = {
-		BLOCK = "FIXED",
-		OTHER = "GUI",
-		FIRST_PERSON_LEFT_HAND = "FIRST_PERSON_LEFT_HAND",
-		FIRST_PERSON_RIGHT_HAND = "FIRST_PERSON_RIGHT_HAND",
-		THIRD_PERSON_LEFT_HAND = "THIRD_PERSON_LEFT_HAND",
-		THIRD_PERSON_RIGHT_HAND = "THIRD_PERSON_RIGHT_HAND",
-		HEAD = "HEAD",
-		GUI = "GUI",
-		GROUND = "GROUND",
-		FIXED = "FIXED",
-	},
-}
-class.__index = class
-
 ---Update's this item's matrices
 ---@return self
 function class:updateMatrices()
 	if not self.queue then
 		self.queue = true
-		table.insert(queue, self)
+		table.insert(updateQueue, self)
 	end
 	return self
 end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Class > Pose ♡˚
+------------------------------------------------------------------------------------------------
 
 ---Sets this item's pose, resetting all custom transformations
 ---@param pose FOXItemBakery.pose
@@ -400,18 +417,39 @@ function class:setPose(pose)
 	return self:updateMatrices()
 end
 
----Sets this item's UV
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Class > UV ♡˚
+------------------------------------------------------------------------------------------------
+
+---Copies the tasks from the source model to the destination model
+---
+---This is a backport of a built-in 0.1.6 feature
+---@param source ModelPart
+---@param dest ModelPart
+local function copyTasks(source, dest)
+	for _, task in pairs(source:getTask()) do
+		dest:addTask(task)
+	end
+end
+
+---Sets this item's uv
+---@param self FOXItemBakery.item
 ---@param tex Texture
 ---@param u integer?
 ---@param v integer?
 ---@param w integer?
 ---@param h integer?
----@return self
-function class:setUV(tex, u, v, w, h)
+---@return FOXItemBakery.item
+local function setUV(self, tex, u, v, w, h)
 	self.texture = tex
+	if not (w and h) then
+		w, h = tex:getDimensions():unpack()
+	end
+	u, v = u or 0, v or 0
+	self.u, self.v, self.w, self.h = u, v, w, h
 
-	local _extruded = getExtruded(tex):visible(true)
-	local _flat = getFlat(tex):visible(true)
+	local _extruded = bakeExtruded(tex, u, v, w, h):visible(true)
+	local _flat = bakeFlat(tex, u, v, w, h):visible(true)
 
 	for k in pairs(self.pose) do
 		local model = k ~= "GUI" and _extruded or _flat
@@ -431,6 +469,21 @@ function class:setUV(tex, u, v, w, h)
 
 	return self:updateMatrices()
 end
+
+---Sets this item's UV
+---@param tex Texture
+---@param u integer?
+---@param v integer?
+---@param w integer?
+---@param h integer?
+---@return self
+function class:setUV(tex, u, v, w, h)
+	return setUV(self, tex, u, v, w, h)
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Class > Rot ♡˚
+------------------------------------------------------------------------------------------------
 
 ---Sets this item's rotation
 ---@param rotation Vector3?
@@ -456,19 +509,7 @@ function class:getRot(mode)
 	return self.pose[mode].rotation
 end
 
----Takes a texture and returns a table of extruded item models of different display contexts
----@param tex Texture
----@param pose FOXItemBakery.pose?
----@return FOXItemBakery.item?
-function bakery.newItem(tex, pose)
-	local self = setmetatable({ parts = {} }, class)
-
-	if not tex then return end
-	self:setPose(pose)
-		:setUV(tex)
-
-	return self
-end
+--#ENDREGION
 
 return bakery
 
