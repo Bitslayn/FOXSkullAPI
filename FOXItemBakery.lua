@@ -137,6 +137,19 @@ local mats = {
 --#REGION ˚♡ Bakery > Bake ♡˚
 ------------------------------------------------------------------------------------------------
 
+---@param tex Texture
+---@param u integer
+---@param v integer
+---@param w integer
+---@param h integer
+---@return string
+local function getTextureKey(tex, u, v, w, h)
+	local temp = models:newSprite(""):setTexture(tex)
+	local key = table.concat({ temp:getTexture(), u, v, w, h }, "-")
+	temp:remove()
+	return key
+end
+
 --#REGION Regions
 
 ---@type table<string, table>
@@ -149,7 +162,7 @@ local filled = {}
 ---@param h integer
 ---@return table
 local function fillRegions(tex, u, v, w, h)
-	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
+	local key = getTextureKey(tex, u, v, w, h)
 	if filled[key] then return filled[key] end
 
 	local regions = {}
@@ -218,7 +231,7 @@ local extruded = {}
 ---@param h integer
 ---@return ModelPart
 local function bakeExtruded(tex, u, v, w, h)
-	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
+	local key = getTextureKey(tex, u, v, w, h)
 	if extruded[key] then return extruded[key] end
 
 	local regions = fillRegions(tex, u, v, w, h)
@@ -304,7 +317,7 @@ local flat = {}
 ---@param h integer
 ---@return ModelPart
 local function bakeFlat(tex, u, v, w, h)
-	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
+	local key = getTextureKey(tex, u, v, w, h)
 	if flat[key] then return flat[key] end
 
 	local regions = fillRegions(tex, u, v, w, h)
@@ -318,7 +331,7 @@ local function bakeFlat(tex, u, v, w, h)
 			local x, y, wid, hei = val.x, val.y, val.wid, val.hei
 			i = i + 1
 
-			model:newSprite("up-" .. i)
+			model:newSprite("flat-" .. i)
 				:pos(-x, -y, 1)
 				:texture(tex, t_w, t_h)
 				:uvPixels(x + u, y + v)
@@ -440,7 +453,7 @@ end
 ---@return FOXItemBakery.item
 local function setTexture(self, tex, w, h)
 	self.texture = tex
-	
+
 	local _w, _h = self.texture:getDimensions():unpack()
 	self.w, self.h = w or _w, h or _h
 
@@ -758,7 +771,7 @@ end
 ---@return self
 function class:updateModel()
 	if not self.texture then return self end
-	
+
 	local u, v, w, h = self.u or 0, self.v or 0, self.w, self.h
 
 	local _extruded = bakeExtruded(self.texture, u, v, w, h):visible(true)
