@@ -433,10 +433,11 @@ end
 ---@return FOXItemBakery.item
 local function setTexture(self, tex, w, h)
 	self.texture = tex
+	
+	local _w, _h = self.texture:getDimensions():unpack()
+	self.w, self.h = w or _w, h or _h
 
-	self.w, self.h = w, h
-
-	local res = 1 / (h / 16)
+	local res = 1 / (self.h / 16)
 	local changed = res ~= self.res
 	self.res = res
 
@@ -497,7 +498,7 @@ end
 ---@return self
 function class:frame(frame)
 	local u, v = self.u, self.v
-	setUV(self, frame * (self.w or self.texture:getDimensions().x) + (u or 0), v or 0)
+	setUV(self, frame * self.w + (u or 0), v or 0)
 	self.u, self.v = u, v
 	return self
 end
@@ -509,7 +510,7 @@ end
 ---@return self
 function class:setFrame(frame)
 	local u, v = self.u, self.v
-	setUV(self, frame * (self.w or self.texture:getDimensions().x) + (u or 0), v or 0)
+	setUV(self, frame * self.w + (u or 0), v or 0)
 	self.u, self.v = u, v
 	return self
 end
@@ -751,9 +752,7 @@ end
 function class:updateModel()
 	if not self.texture then return self end
 	
-	local w, h = self.texture:getDimensions():unpack()
-	w, h = self.w or w, self.h or h
-	local u, v = self.u or 0, self.v or 0
+	local u, v, w, h = self.u or 0, self.v or 0, self.w, self.h
 
 	local _extruded = bakeExtruded(self.texture, u, v, w, h):visible(true)
 	local _flat = bakeFlat(self.texture, u, v, w, h):visible(true)
