@@ -389,7 +389,7 @@ function bakery.newItem(tex, pose)
 	end
 
 	if tex then
-		self:setUV(tex)
+		self:setTexture(tex)
 	end
 
 	return self
@@ -420,81 +420,101 @@ function class:setPose(pose)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ Class > UV ♡˚
+--#REGION ˚♡ Class > Texture ♡˚
 ------------------------------------------------------------------------------------------------
 
----Copies the tasks from the source model to the destination model
----
----This is a backport of a built-in 0.1.6 feature
----@param source ModelPart
----@param dest ModelPart
-local function copyTasks(source, dest)
-	for _, task in pairs(source:getTask()) do
-		dest:addTask(task)
-	end
-end
+--#REGION Texture
 
 ---Sets this item's uv
 ---@param self FOXItemBakery.item
 ---@param tex Texture
----@param u integer?
----@param v integer?
 ---@param w integer?
 ---@param h integer?
 ---@return FOXItemBakery.item
-local function setUV(self, tex, u, v, w, h)
+local function setTexture(self, tex, w, h)
 	self.texture = tex
-	if not (w and h) then
-		w, h = tex:getDimensions():unpack()
-	end
-	u, v = u or 0, v or 0
-	self.u, self.v, self.w, self.h = u, v, w, h
+
+	self.w, self.h = w, h
 
 	local res = 1 / (h / 16)
-	local resChanged = res ~= self.res
+	local changed = res ~= self.res
 	self.res = res
 
-	local _extruded = bakeExtruded(tex, u, v, w, h):visible(true)
-	local _flat = bakeFlat(tex, u, v, w, h):visible(true)
+	self:updateModel()
 
-	for k in pairs(self.pose) do
-		local model = k ~= "GUI" and _extruded or _flat
-
-		local pvt = self.parts[k].pvt
-		if pvt.tsk then pvt.tsk:remove() end
-		local tsk = model:copy("tsk"):moveTo(pvt)
-
-		if not next(tsk:getTask()) then
-			copyTasks(model, tsk)
-		end
-	end
-
-	_extruded:visible(false)
-	_flat:visible(false)
-
-	return resChanged and self:updateMatrices() or self
+	return changed and self:updateMatrices() or self
 end
 
----Sets this item's UV
+---Sets this item's texture
 ---@param tex Texture
----@param u integer?
----@param v integer?
 ---@param w integer?
 ---@param h integer?
 ---@return self
-function class:setUV(tex, u, v, w, h)
-	return setUV(self, tex, u, v, w, h)
+function class:setTexture(tex, w, h)
+	return setTexture(self, tex, w, h)
 end
 
----comment
+--#ENDREGION
+--#REGION UV
+
+---Sets this item's uv
+---@param self FOXItemBakery.item
+---@param u integer?
+---@param v integer?
+---@return FOXItemBakery.item
+local function setUV(self, u, v)
+	u, v = u or 0, v or 0
+	self.u, self.v = u, v
+
+	self:updateModel()
+
+	return self
+end
+
+---Sets this item's uv
+---@param u integer?
+---@param v integer?
+---@return self
+function class:uv(u, v)
+	return setUV(self, u, v)
+end
+
+---Sets this item's uv
+---@param u integer?
+---@param v integer?
+---@return self
+function class:setUV(u, v)
+	return setUV(self, u, v)
+end
+
+--#ENDREGION
+--#REGION Animation
+
+---Sets the current frame number
+---
+---Useful for animated textures
+---@param frame integer?
+---@return self
+function class:frame(frame)
+	local u, v = self.u, self.v
+	setUV(self, frame * (self.w or self.texture:getDimensions().x) + (u or 0), v or 0)
+	self.u, self.v = u, v
+	return self
+end
+
+---Sets the current frame number
+---
+---Useful for animated textures
 ---@param frame integer?
 ---@return self
 function class:setFrame(frame)
 	local u, v = self.u, self.v
-	setUV(self, self.texture, frame * self.w + u, v, self.w, self.h)
+	setUV(self, frame * (self.w or self.texture:getDimensions().x) + (u or 0), v or 0)
 	self.u, self.v = u, v
 	return self
 end
+
+--#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Class > Transform ♡˚
@@ -688,7 +708,7 @@ function class:updateMatrices()
 		mdp.pvt.preRender = function(_, _, part)
 			local pose = self.pose[mode]
 			local offset = self.offset[mode]
-			
+
 			local pos = (pose.translation or zeroVec) + (offset.translation or zeroVec)
 			local rot = (pose.rotation or zeroVec) + (offset.rotation or zeroVec)
 			local scl = (pose.scale or oneVec) * (offset.scale or oneVec)
@@ -707,6 +727,51 @@ function class:updateMatrices()
 			part.preRender = nil
 		end
 	end
+
+	return self
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Class > Model ♡˚
+------------------------------------------------------------------------------------------------
+
+---Copies the tasks from the source model to the destination model
+---
+---This is a backport of a built-in 0.1.6 feature
+---@param source ModelPart
+---@param dest ModelPart
+local function copyTasks(source, dest)
+	for _, task in pairs(source:getTask()) do
+		dest:addTask(task)
+	end
+end
+
+---Update's this item's model
+---@return self
+function class:updateModel()
+	if not self.texture then return self end
+	
+	local w, h = self.texture:getDimensions():unpack()
+	w, h = self.w or w, self.h or h
+	local u, v = self.u or 0, self.v or 0
+
+	local _extruded = bakeExtruded(self.texture, u, v, w, h):visible(true)
+	local _flat = bakeFlat(self.texture, u, v, w, h):visible(true)
+
+	for k in pairs(self.pose) do
+		local model = k ~= "GUI" and _extruded or _flat
+
+		local pvt = self.parts[k].pvt
+		if pvt.tsk then pvt.tsk:remove() end
+		local tsk = model:copy("tsk"):moveTo(pvt)
+
+		if not next(tsk:getTask()) then
+			copyTasks(model, tsk)
+		end
+	end
+
+	_extruded:visible(false)
+	_flat:visible(false)
 
 	return self
 end
