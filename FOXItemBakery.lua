@@ -318,6 +318,7 @@ local bakery = {}
 ---@field v integer
 ---@field w integer
 ---@field h integer
+---@field res integer
 ---@field queue boolean?
 local class = {
 	["FOXSkull$model"] = "parts",
@@ -367,28 +368,26 @@ end
 ---Update's this item's matrices
 ---@return self
 function class:updateMatrices()
-	for k, mdp in pairs(self.parts) do
-		local v = self.pose[k]
+	for mode, mdp in pairs(self.parts) do
+		mdp.pvt.tsk.preRender = function(_, _, part)
+			local pose = self.pose[mode]
 
-		mdp.pvt.tsk.midRender = function(_, _, part)
-			local pos = v.translation or vectors.vec3()
-			local rot = v.rotation or vectors.vec3()
-			local scl = v.scale or vectors.vec3() + 1
-
-			local res = 1 / (self.h / 16)
+			local pos = pose.translation or vectors.vec3()
+			local rot = pose.rotation or vectors.vec3()
+			local scl = pose.scale or vectors.vec3() + 1
 
 			local mat = matrices.mat4()
 				:translate(self.w / 2, self.h / 2, -0.5)
-				:scale(res, res, 1)
+				:scale(self.res, self.res, 1)
 				:scale(scl)
 				:rotateZ(rot.x)
 				:rotateY(rot.y)
 				:rotateX(rot.z)
 				:translate(pos:copy():mul(-1, 1, -1))
-				:multiply(mats[k])
+				:multiply(mats[mode])
 
 			part:matrix(mat)
-			part.midRender = nil
+			part.preRender = nil
 		end
 	end
 
@@ -448,6 +447,8 @@ local function setUV(self, tex, u, v, w, h)
 	end
 	u, v = u or 0, v or 0
 	self.u, self.v, self.w, self.h = u, v, w, h
+	
+	self.res = 1 / (h / 16)
 
 	local _extruded = bakeExtruded(tex, u, v, w, h):visible(true)
 	local _flat = bakeFlat(tex, u, v, w, h):visible(true)
