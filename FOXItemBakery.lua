@@ -139,7 +139,7 @@ local mats = {
 
 --#REGION Regions
 
----@type table<string, ModelPart>
+---@type table<string, table>
 local filled = {}
 
 ---@param tex Texture
@@ -207,7 +207,7 @@ end
 --#ENDREGION
 --#REGION Extrusion
 
----@type table<Texture, ModelPart>
+---@type table<string, ModelPart>
 local extruded = {}
 
 ---Bakes a texture into an extruded model
