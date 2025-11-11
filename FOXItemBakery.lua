@@ -150,6 +150,9 @@ local extruded = {}
 ---@param h integer
 ---@return ModelPart
 local function bakeExtruded(tex, u, v, w, h)
+	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
+	if extruded[key] then return extruded[key] end
+
 	local regions = {}
 
 	local pos
@@ -261,8 +264,8 @@ local function bakeExtruded(tex, u, v, w, h)
 		:region(-w, h)
 		:renderType("TRANSLUCENT_CULL")
 
-	extruded[tex] = model
-	return extruded[tex]
+	extruded[key] = model
+	return extruded[key]
 end
 
 --#ENDREGION
@@ -313,6 +316,8 @@ local bakery = {}
 
 ---@class FOXItemBakery.item
 ---@field parts table<ItemTask.displayMode, ModelPart>
+---@field pose table<ItemTask.displayMode, FOXItemBakery.transform>
+---@field offset table<ItemTask.displayMode, FOXItemBakery.transform>
 ---@field texture Texture
 ---@field u integer
 ---@field v integer
@@ -342,7 +347,10 @@ class.__index = class
 ---@param pose FOXItemBakery.pose?
 ---@return FOXItemBakery.item?
 function bakery.newItem(tex, pose)
-	local self = setmetatable({ parts = {} }, class)
+	local self = setmetatable({
+		parts = {},
+		offset = {},
+	}, class)
 
 	self:setPose(pose)
 
@@ -369,10 +377,13 @@ end
 ---@return self
 function class:updateMatrices()
 	for mode, mdp in pairs(self.parts) do
+		-- mdp.pvt.preRender could work here, if setting offsets apply to all instances of that item
 		mdp.pvt.tsk.preRender = function(_, _, part)
 			local pose = self.pose[mode]
+			local offset = self.offset[mode]
 
 			local pos = pose.translation or vectors.vec3()
+			-- pos = pos + 
 			local rot = pose.rotation or vectors.vec3()
 			local scl = pose.scale or vectors.vec3() + 1
 
@@ -447,7 +458,7 @@ local function setUV(self, tex, u, v, w, h)
 	end
 	u, v = u or 0, v or 0
 	self.u, self.v, self.w, self.h = u, v, w, h
-	
+
 	self.res = 1 / (h / 16)
 
 	local _extruded = bakeExtruded(tex, u, v, w, h):visible(true)
@@ -518,6 +529,10 @@ end
 function class:getRot(mode)
 	mode = mode and string.upper(mode)
 	return self.pose[mode].rotation
+end
+
+function class:offsetRot(rotation, mode)
+
 end
 
 --#ENDREGION
