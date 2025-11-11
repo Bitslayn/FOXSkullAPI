@@ -137,19 +137,6 @@ local mats = {
 --#REGION ˚♡ Bakery > Bake ♡˚
 ------------------------------------------------------------------------------------------------
 
----@param tex Texture
----@param u integer
----@param v integer
----@param w integer
----@param h integer
----@return string
-local function getTextureKey(tex, u, v, w, h)
-	local temp = models:newSprite(""):setTexture(tex)
-	local key = table.concat({ temp:getTexture(), u, v, w, h }, "-")
-	temp:remove()
-	return key
-end
-
 --#REGION Regions
 
 ---@type table<string, table>
@@ -162,7 +149,8 @@ local filled = {}
 ---@param h integer
 ---@return table
 local function fillRegions(tex, u, v, w, h)
-	local key = getTextureKey(tex, u, v, w, h)
+	---@diagnostic disable-next-line: undefined-field
+	local key = table.concat({ tex:getPath(), u, v, w, h }, "-")
 	if filled[key] then return filled[key] end
 
 	local regions = {}
@@ -231,7 +219,8 @@ local extruded = {}
 ---@param h integer
 ---@return ModelPart
 local function bakeExtruded(tex, u, v, w, h)
-	local key = getTextureKey(tex, u, v, w, h)
+	---@diagnostic disable-next-line: undefined-field
+	local key = table.concat({ tex:getPath(), u, v, w, h }, "-")
 	if extruded[key] then return extruded[key] end
 
 	local regions = fillRegions(tex, u, v, w, h)
@@ -317,7 +306,8 @@ local flat = {}
 ---@param h integer
 ---@return ModelPart
 local function bakeFlat(tex, u, v, w, h)
-	local key = getTextureKey(tex, u, v, w, h)
+	---@diagnostic disable-next-line: undefined-field
+	local key = table.concat({ tex:getPath(), u, v, w, h }, "-")
 	if flat[key] then return flat[key] end
 
 	local regions = fillRegions(tex, u, v, w, h)
