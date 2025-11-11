@@ -293,7 +293,6 @@ local function bakeFlat(tex, u, v, w, h)
 		:uvPixels(u, v)
 		:size(w, h)
 		:region(w, h)
-		:renderType("TRANSLUCENT_CULL")
 
 	for _, vert in pairs(sprite:getVertices()) do
 		vert:setNormal(0, -1, 0)
@@ -373,19 +372,19 @@ end
 --#REGION ˚♡ Class > Update Matrices ♡˚
 ------------------------------------------------------------------------------------------------
 
+local zeroVec = vectors.vec3()
+
 ---Update's this item's matrices
 ---@return self
 function class:updateMatrices()
 	for mode, mdp in pairs(self.parts) do
-		-- mdp.pvt.preRender could work here, if setting offsets apply to all instances of that item
-		mdp.pvt.tsk.preRender = function(_, _, part)
+		mdp.pvt.preRender = function(_, _, part)
 			local pose = self.pose[mode]
 			local offset = self.offset[mode]
-
-			local pos = pose.translation or vectors.vec3()
-			-- pos = pos + 
-			local rot = pose.rotation or vectors.vec3()
-			local scl = pose.scale or vectors.vec3() + 1
+			
+			local pos = (pose.translation or zeroVec) + (offset.translation or zeroVec + 1)
+			local rot = (pose.rotation or zeroVec) + (offset.rotation or zeroVec)
+			local scl = (pose.scale or zeroVec + 1) * (offset.scale or zeroVec + 1)
 
 			local mat = matrices.mat4()
 				:translate(self.w / 2, self.h / 2, -0.5)
@@ -423,6 +422,7 @@ function class:setPose(pose)
 			translation = v.translation,
 			scale = v.scale,
 		}
+		if not self.offset[k] then self.offset[k] = {} end
 	end
 
 	return self:updateMatrices()
@@ -459,7 +459,9 @@ local function setUV(self, tex, u, v, w, h)
 	u, v = u or 0, v or 0
 	self.u, self.v, self.w, self.h = u, v, w, h
 
-	self.res = 1 / (h / 16)
+	local res = 1 / (h / 16)
+	local resChanged = res ~= self.res
+	self.res = res
 
 	local _extruded = bakeExtruded(tex, u, v, w, h):visible(true)
 	local _flat = bakeFlat(tex, u, v, w, h):visible(true)
@@ -479,7 +481,7 @@ local function setUV(self, tex, u, v, w, h)
 	_extruded:visible(false)
 	_flat:visible(false)
 
-	return self:updateMatrices()
+	return resChanged and self:updateMatrices() or self
 end
 
 ---Sets this item's UV
@@ -507,32 +509,55 @@ end
 --#REGION ˚♡ Class > Rot ♡˚
 ------------------------------------------------------------------------------------------------
 
+---comment
+---@param t table
+---@param k any
+---@param v any
+---@param m ItemTask.displayMode
+local function distribute(t, k, v, m)
+	if m then
+		m = string.upper(m)
+		if not t[m] then t[m] = {} end
+		t[m][k] = v
+	else
+		for _, _t in pairs(t) do
+			_t[k] = v
+		end
+	end
+end
+
 ---Sets this item's rotation
 ---@param rotation Vector3?
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:rot(rotation, mode)
-	if mode then
-		mode = string.upper(mode)
-		self.pose[mode].rotation = rotation
-	else
-		for _, pose in pairs(self.pose) do
-			pose.rotation = rotation
-		end
-	end
+	distribute(self.pose, "rotation", rotation, mode)
 	return self:updateMatrices()
 end
 
 ---Gets this item's current rotation
----@param mode ItemTask.displayMode?
+---@param mode ItemTask.displayMode
 ---@return Vector3
 function class:getRot(mode)
 	mode = mode and string.upper(mode)
 	return self.pose[mode].rotation
 end
 
+---Sets this item's offset rotation
+---@param rotation Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
 function class:offsetRot(rotation, mode)
+	distribute(self.offset, "rotation", rotation, mode)
+	return self:updateMatrices()
+end
 
+---Gets this item's current offset rotation
+---@param mode ItemTask.displayMode
+---@return Vector3
+function class:getOffsetRot(mode)
+	mode = mode and string.upper(mode)
+	return self.offset[mode].rotation
 end
 
 --#ENDREGION
