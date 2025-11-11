@@ -139,13 +139,19 @@ local mats = {
 
 --#REGION Regions
 
+---@type table<string, ModelPart>
+local filled = {}
+
 ---@param tex Texture
 ---@param u integer
 ---@param v integer
 ---@param w integer
 ---@param h integer
 ---@return table
-local function bakeRegions(tex, u, v, w, h)
+local function fillRegions(tex, u, v, w, h)
+	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
+	if filled[key] then return filled[key] end
+
 	local regions = {}
 
 	local pos
@@ -194,6 +200,7 @@ local function bakeRegions(tex, u, v, w, h)
 		::continue::
 	end
 
+	filled[key] = regions
 	return regions
 end
 
@@ -214,7 +221,7 @@ local function bakeExtruded(tex, u, v, w, h)
 	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
 	if extruded[key] then return extruded[key] end
 
-	local regions = bakeRegions(tex, u, v, w, h)
+	local regions = fillRegions(tex, u, v, w, h)
 
 	local model = models:newPart(tex:getName())
 	local t_w, t_h = tex:getDimensions():unpack()
@@ -300,7 +307,7 @@ local function bakeFlat(tex, u, v, w, h)
 	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
 	if flat[key] then return flat[key] end
 
-	local regions = bakeRegions(tex, u, v, w, h)
+	local regions = fillRegions(tex, u, v, w, h)
 
 	local model = models:newPart(tex:getName())
 	local t_w, t_h = tex:getDimensions():unpack()
