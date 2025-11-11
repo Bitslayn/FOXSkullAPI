@@ -382,7 +382,7 @@ function class:updateMatrices()
 			local pose = self.pose[mode]
 			local offset = self.offset[mode]
 			
-			local pos = (pose.translation or zeroVec) + (offset.translation or zeroVec + 1)
+			local pos = (pose.translation or zeroVec) + (offset.translation or zeroVec)
 			local rot = (pose.rotation or zeroVec) + (offset.rotation or zeroVec)
 			local scl = (pose.scale or zeroVec + 1) * (offset.scale or zeroVec + 1)
 
