@@ -364,24 +364,21 @@ end
 --#REGION ˚♡ Class > Update Matrices ♡˚
 ------------------------------------------------------------------------------------------------
 
----@type FOXItemBakery.item[]
-local updateQueue = {}
+---Update's this item's matrices
+---@return self
+function class:updateMatrices()
+	for k, mdp in pairs(self.parts) do
+		local v = self.pose[k]
 
-function events.world_render()
-	for i = #updateQueue, 1, -1 do
-		local self = updateQueue[i]
-		self.queue = nil
-
-		local w, h = self.w, self.h
-		local res = 1 / (h / 16)
-
-		for k, v in pairs(self.pose) do
+		mdp.pvt.tsk.midRender = function(_, _, part)
 			local pos = v.translation or vectors.vec3()
 			local rot = v.rotation or vectors.vec3()
 			local scl = v.scale or vectors.vec3() + 1
 
+			local res = 1 / (self.h / 16)
+
 			local mat = matrices.mat4()
-				:translate(w / 2, h / 2, -0.5)
+				:translate(self.w / 2, self.h / 2, -0.5)
 				:scale(res, res, 1)
 				:scale(scl)
 				:rotateZ(rot.x)
@@ -390,20 +387,11 @@ function events.world_render()
 				:translate(pos:copy():mul(-1, 1, -1))
 				:multiply(mats[k])
 
-			self.parts[k].pvt.tsk:matrix(mat)
+			part:matrix(mat)
+			part.midRender = nil
 		end
-
-		updateQueue[i] = nil
 	end
-end
 
----Update's this item's matrices
----@return self
-function class:updateMatrices()
-	if not self.queue then
-		self.queue = true
-		table.insert(updateQueue, self)
-	end
 	return self
 end
 
