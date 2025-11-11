@@ -137,22 +137,15 @@ local mats = {
 --#REGION ˚♡ Bakery > Bake ♡˚
 ------------------------------------------------------------------------------------------------
 
---#REGION Extrusion
+--#REGION Regions
 
----@type table<Texture, ModelPart>
-local extruded = {}
-
----Bakes a texture into an extruded model
 ---@param tex Texture
 ---@param u integer
 ---@param v integer
 ---@param w integer
 ---@param h integer
----@return ModelPart
-local function bakeExtruded(tex, u, v, w, h)
-	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
-	if extruded[key] then return extruded[key] end
-
+---@return table
+local function bakeRegions(tex, u, v, w, h)
 	local regions = {}
 
 	local pos
@@ -200,6 +193,28 @@ local function bakeExtruded(tex, u, v, w, h)
 
 		::continue::
 	end
+
+	return regions
+end
+
+--#ENDREGION
+--#REGION Extrusion
+
+---@type table<Texture, ModelPart>
+local extruded = {}
+
+---Bakes a texture into an extruded model
+---@param tex Texture
+---@param u integer
+---@param v integer
+---@param w integer
+---@param h integer
+---@return ModelPart
+local function bakeExtruded(tex, u, v, w, h)
+	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
+	if extruded[key] then return extruded[key] end
+
+	local regions = bakeRegions(tex, u, v, w, h)
 
 	local model = models:newPart(tex:getName())
 	local t_w, t_h = tex:getDimensions():unpack()
@@ -285,17 +300,25 @@ local function bakeFlat(tex, u, v, w, h)
 	local key = table.concat({ tex:getName(), u, v, w, h }, "-")
 	if flat[key] then return flat[key] end
 
+	local regions = bakeRegions(tex, u, v, w, h)
+
 	local model = models:newPart(tex:getName())
 	local t_w, t_h = tex:getDimensions():unpack()
 
-	local sprite = model:newSprite("north")
-		:texture(tex, t_w, t_h)
-		:uvPixels(u, v)
-		:size(w, h)
-		:region(w, h)
+	local i = 0
+	for _, tbl in pairs(regions) do
+		for _, val in pairs(tbl) do
+			local x, y, wid, hei = val.x, val.y, val.wid, val.hei
+			i = i + 1
 
-	for _, vert in pairs(sprite:getVertices()) do
-		vert:setNormal(0, -1, 0)
+			model:newSprite("up-" .. i)
+				:pos(-x, -y, 1)
+				:texture(tex, t_w, t_h)
+				:uvPixels(x + u, y + v)
+				:size(wid, hei)
+				:region(wid, hei)
+				:renderType("EMISSIVE_SOLID")
+		end
 	end
 
 	flat[key] = model
@@ -341,6 +364,10 @@ local class = {
 }
 class.__index = class
 
+------------------------------------------------------------------------------------------------
+--#REGION ˚♡ Class > New ♡˚
+------------------------------------------------------------------------------------------------
+
 ---Takes a texture and returns a table of extruded item models of different display contexts
 ---@param tex Texture?
 ---@param pose FOXItemBakery.pose?
@@ -363,42 +390,6 @@ function bakery.newItem(tex, pose)
 
 	if tex then
 		self:setUV(tex)
-	end
-
-	return self
-end
-
-------------------------------------------------------------------------------------------------
---#REGION ˚♡ Class > Update Matrices ♡˚
-------------------------------------------------------------------------------------------------
-
-local zeroVec, oneVec = vectors.vec3(), vectors.vec3() + 1
-
----Update's this item's matrices
----@return self
-function class:updateMatrices()
-	for mode, mdp in pairs(self.parts) do
-		mdp.pvt.preRender = function(_, _, part)
-			local pose = self.pose[mode]
-			local offset = self.offset[mode]
-			
-			local pos = (pose.translation or zeroVec) + (offset.translation or zeroVec)
-			local rot = (pose.rotation or zeroVec) + (offset.rotation or zeroVec)
-			local scl = (pose.scale or oneVec) * (offset.scale or oneVec)
-
-			local mat = matrices.mat4()
-				:translate(self.w / 2, self.h / 2, -0.5)
-				:scale(self.res, self.res, 1)
-				:scale(scl)
-				:rotateZ(rot.x)
-				:rotateY(rot.y)
-				:rotateX(rot.z)
-				:translate(pos:copy():mul(-1, 1, -1))
-				:multiply(mats[mode])
-
-			part:matrix(mat)
-			part.preRender = nil
-		end
 	end
 
 	return self
@@ -506,10 +497,9 @@ function class:setFrame(frame)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ Class > Rot ♡˚
+--#REGION ˚♡ Class > Transform ♡˚
 ------------------------------------------------------------------------------------------------
 
----comment
 ---@param t table
 ---@param k any
 ---@param v any
@@ -526,11 +516,22 @@ local function distribute(t, k, v, m)
 	end
 end
 
+--#REGION Rot
+
 ---Sets this item's rotation
 ---@param rotation Vector3?
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:rot(rotation, mode)
+	distribute(self.pose, "rotation", rotation, mode)
+	return self:updateMatrices()
+end
+
+---Sets this item's rotation
+---@param rotation Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:setRot(rotation, mode)
 	distribute(self.pose, "rotation", rotation, mode)
 	return self:updateMatrices()
 end
@@ -552,12 +553,59 @@ function class:offsetRot(rotation, mode)
 	return self:updateMatrices()
 end
 
+---Sets this item's offset rotation
+---@param rotation Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:setOffsetRot(rotation, mode)
+	distribute(self.offset, "rotation", rotation, mode)
+	return self:updateMatrices()
+end
+
 ---Gets this item's current offset rotation
 ---@param mode ItemTask.displayMode
 ---@return Vector3
 function class:getOffsetRot(mode)
 	mode = mode and string.upper(mode)
 	return self.offset[mode].rotation
+end
+
+--#ENDREGION
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Class > Matrices ♡˚
+------------------------------------------------------------------------------------------------
+
+local zeroVec, oneVec = vectors.vec3(), vectors.vec3() + 1
+
+---Update's this item's matrices
+---@return self
+function class:updateMatrices()
+	for mode, mdp in pairs(self.parts) do
+		mdp.pvt.preRender = function(_, _, part)
+			local pose = self.pose[mode]
+			local offset = self.offset[mode]
+			
+			local pos = (pose.translation or zeroVec) + (offset.translation or zeroVec)
+			local rot = (pose.rotation or zeroVec) + (offset.rotation or zeroVec)
+			local scl = (pose.scale or oneVec) * (offset.scale or oneVec)
+
+			local mat = matrices.mat4()
+				:translate(self.w / 2, self.h / 2, -0.5)
+				:scale(self.res, self.res, 1)
+				:scale(scl)
+				:rotateZ(rot.x)
+				:rotateY(rot.y)
+				:rotateX(rot.z)
+				:translate(pos:copy():mul(-1, 1, -1))
+				:multiply(mats[mode])
+
+			part:matrix(mat)
+			part.preRender = nil
+		end
+	end
+
+	return self
 end
 
 --#ENDREGION
