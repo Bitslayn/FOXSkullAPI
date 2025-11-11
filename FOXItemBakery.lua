@@ -519,20 +519,20 @@ end
 --#REGION Rot
 
 ---Sets this item's rotation
----@param rotation Vector3?
+---@param rot Vector3?
 ---@param mode ItemTask.displayMode?
 ---@return self
-function class:rot(rotation, mode)
-	distribute(self.pose, "rotation", rotation, mode)
+function class:rot(rot, mode)
+	distribute(self.pose, "rotation", rot, mode)
 	return self:updateMatrices()
 end
 
 ---Sets this item's rotation
----@param rotation Vector3?
+---@param rot Vector3?
 ---@param mode ItemTask.displayMode?
 ---@return self
-function class:setRot(rotation, mode)
-	distribute(self.pose, "rotation", rotation, mode)
+function class:setRot(rot, mode)
+	distribute(self.pose, "rotation", rot, mode)
 	return self:updateMatrices()
 end
 
@@ -545,20 +545,20 @@ function class:getRot(mode)
 end
 
 ---Sets this item's offset rotation
----@param rotation Vector3?
+---@param rot Vector3?
 ---@param mode ItemTask.displayMode?
 ---@return self
-function class:offsetRot(rotation, mode)
-	distribute(self.offset, "rotation", rotation, mode)
+function class:offsetRot(rot, mode)
+	distribute(self.offset, "rotation", rot, mode)
 	return self:updateMatrices()
 end
 
 ---Sets this item's offset rotation
----@param rotation Vector3?
+---@param rot Vector3?
 ---@param mode ItemTask.displayMode?
 ---@return self
-function class:setOffsetRot(rotation, mode)
-	distribute(self.offset, "rotation", rotation, mode)
+function class:setOffsetRot(rot, mode)
+	distribute(self.offset, "rotation", rot, mode)
 	return self:updateMatrices()
 end
 
@@ -568,6 +568,116 @@ end
 function class:getOffsetRot(mode)
 	mode = mode and string.upper(mode)
 	return self.offset[mode].rotation
+end
+
+--#ENDREGION
+--#REGION Pos
+
+---Sets this item's position
+---@param pos Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:pos(pos, mode)
+	distribute(self.pose, "transform", pos, mode)
+	return self:updateMatrices()
+end
+
+---Sets this item's position
+---@param pos Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:setPos(pos, mode)
+	distribute(self.pose, "transform", pos, mode)
+	return self:updateMatrices()
+end
+
+---Gets this item's current position
+---@param mode ItemTask.displayMode
+---@return Vector3
+function class:getPos(mode)
+	mode = mode and string.upper(mode)
+	return self.pose[mode].transform
+end
+
+---Sets this item's offset position
+---@param pos Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:offsetPos(pos, mode)
+	distribute(self.offset, "transform", pos, mode)
+	return self:updateMatrices()
+end
+
+---Sets this item's offset position
+---@param pos Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:setOffsetPos(pos, mode)
+	distribute(self.offset, "transform", pos, mode)
+	return self:updateMatrices()
+end
+
+---Gets this item's current offset position
+---@param mode ItemTask.displayMode
+---@return Vector3
+function class:getOffsetPos(mode)
+	mode = mode and string.upper(mode)
+	return self.offset[mode].transform
+end
+
+--#ENDREGION
+--#REGION Scale
+
+---Sets this item's scale
+---@param scale Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:scale(scale, mode)
+	distribute(self.pose, "scale", scale, mode)
+	return self:updateMatrices()
+end
+
+---Sets this item's scale
+---@param scale Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:setScale(scale, mode)
+	distribute(self.pose, "scale", scale, mode)
+	return self:updateMatrices()
+end
+
+---Gets this item's current scale
+---@param mode ItemTask.displayMode
+---@return Vector3
+function class:getScale(mode)
+	mode = mode and string.upper(mode)
+	return self.pose[mode].scale
+end
+
+---Sets this item's offset scale
+---@param scale Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:offsetScale(scale, mode)
+	distribute(self.offset, "scale", scale, mode)
+	return self:updateMatrices()
+end
+
+---Sets this item's offset scale
+---@param scale Vector3?
+---@param mode ItemTask.displayMode?
+---@return self
+function class:setOffsetScale(scale, mode)
+	distribute(self.offset, "scale", scale, mode)
+	return self:updateMatrices()
+end
+
+---Gets this item's current offset scale
+---@param mode ItemTask.displayMode
+---@return Vector3
+function class:getOffsetScale(mode)
+	mode = mode and string.upper(mode)
+	return self.offset[mode].scale
 end
 
 --#ENDREGION
