@@ -190,11 +190,11 @@ local function bakeExtruded(tex, u, v, w, h)
 		local a, b = regions[i - 1], regions[i]
 		if not (a and b) then goto continue end
 
-		for key, val in pairs(a) do
-			if b[key] and b[key].wid == val.wid then
+		for k, val in pairs(a) do
+			if b[k] and b[k].wid == val.wid then
 				val.hei = val.hei + 1
-				a[key] = nil
-				b[key] = val
+				a[k] = nil
+				b[k] = val
 			end
 		end
 
@@ -372,7 +372,7 @@ end
 --#REGION ˚♡ Class > Update Matrices ♡˚
 ------------------------------------------------------------------------------------------------
 
-local zeroVec = vectors.vec3()
+local zeroVec, oneVec = vectors.vec3(), vectors.vec3() + 1
 
 ---Update's this item's matrices
 ---@return self
@@ -384,7 +384,7 @@ function class:updateMatrices()
 			
 			local pos = (pose.translation or zeroVec) + (offset.translation or zeroVec)
 			local rot = (pose.rotation or zeroVec) + (offset.rotation or zeroVec)
-			local scl = (pose.scale or zeroVec + 1) * (offset.scale or zeroVec + 1)
+			local scl = (pose.scale or oneVec) * (offset.scale or oneVec)
 
 			local mat = matrices.mat4()
 				:translate(self.w / 2, self.h / 2, -0.5)
