@@ -256,7 +256,7 @@ local function bakeExtruded(tex, u, v, w, h)
 		:pos(-w, 0, 1)
 		:rot(0, 180, 0)
 		:texture(tex, t_w, t_h)
-		:uvPixels(t_w - w + u, v)
+		:uvPixels(w - t_w + u, v)
 		:size(w, h)
 		:region(-w, h)
 		:renderType("TRANSLUCENT_CULL")
@@ -337,15 +337,25 @@ local class = {
 class.__index = class
 
 ---Takes a texture and returns a table of extruded item models of different display contexts
----@param tex Texture
+---@param tex Texture?
 ---@param pose FOXItemBakery.pose?
 ---@return FOXItemBakery.item?
 function bakery.newItem(tex, pose)
 	local self = setmetatable({ parts = {} }, class)
 
-	if not tex then return end
 	self:setPose(pose)
-		:setUV(tex)
+
+	for k in pairs(self.pose) do
+		local itm = models:newPart(k)
+		---@diagnostic disable-next-line: unused-local
+		local pvt = itm:newPart("pvt")
+
+		self.parts[k] = itm:visible(false)
+	end
+
+	if tex then
+		self:setUV(tex)
+	end
 
 	return self
 end
@@ -358,7 +368,8 @@ end
 local updateQueue = {}
 
 function events.world_render()
-	for _, self in pairs(updateQueue) do
+	for i = #updateQueue, 1, -1 do
+		local self = updateQueue[i]
 		self.queue = nil
 
 		local w, h = self.w, self.h
@@ -379,8 +390,10 @@ function events.world_render()
 				:translate(pos:copy():mul(-1, 1, -1))
 				:multiply(mats[k])
 
-			self.parts[k].item:matrix(mat)
+			self.parts[k].pvt.tsk:matrix(mat)
 		end
+
+		updateQueue[i] = nil
 	end
 end
 
@@ -454,14 +467,13 @@ local function setUV(self, tex, u, v, w, h)
 	for k in pairs(self.pose) do
 		local model = k ~= "GUI" and _extruded or _flat
 
-		local pivot = models:newPart(tex:getName())
-		local item = model:copy("item"):moveTo(pivot)
+		local pvt = self.parts[k].pvt
+		if pvt.tsk then pvt.tsk:remove() end
+		local tsk = model:copy("tsk"):moveTo(pvt)
 
-		if not next(item:getTask()) then
-			copyTasks(model, item)
+		if not next(tsk:getTask()) then
+			copyTasks(model, tsk)
 		end
-
-		self.parts[k] = pivot:visible(false)
 	end
 
 	_extruded:visible(false)
@@ -479,6 +491,16 @@ end
 ---@return self
 function class:setUV(tex, u, v, w, h)
 	return setUV(self, tex, u, v, w, h)
+end
+
+---comment
+---@param frame integer?
+---@return self
+function class:setFrame(frame)
+	local u, v = self.u, self.v
+	setUV(self, self.texture, frame * self.w + u, v, self.w, self.h)
+	self.u, self.v = u, v
+	return self
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
