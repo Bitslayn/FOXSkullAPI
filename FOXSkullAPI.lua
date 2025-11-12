@@ -714,12 +714,12 @@ function json.format(tbl)
 
 	local fig, i = {}, 0
 
-	---@param val any
+	---@param ... any
 	---@return string
-	local function push(val)
+	local function push(...)
 		i = i + 1
 		local x = string.format("%x", i)
-		fig[x] = val
+		fig[x] = (({...})[3] and "%s%s (%s)r" or "%s%sr"):format(...)
 		return "${" .. x .. "}"
 	end
 
@@ -731,15 +731,15 @@ function json.format(tbl)
 
 		if formatTypes[t] then
 			local name, type = formatTypes[t](curr)
-			converted = push(string.format(type and "e%s (%s)r" or "e%sr", name, type))
+			converted = push("e", name, type)
 		elseif t == "table" then
 			for k, v in pairs(curr) do
 				converted[k] = rawType(v)
 			end
 		elseif t == "number" then
-			converted = push(string.format("b%sr", formatStrings[tostring(curr)] or curr))
+			converted = push("b", formatStrings[tostring(curr)] or curr)
 		elseif t == "boolean" then
-			converted = push(string.format(curr and "a%sr" or "c%sr", tostring(curr)))
+			converted = push(curr and "a" or "c", tostring(curr))
 		else
 			converted = curr
 		end
