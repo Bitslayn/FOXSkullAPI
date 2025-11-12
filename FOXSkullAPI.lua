@@ -434,7 +434,7 @@ end
 ---@type {[string]: number}
 local decodeStrings = {
 	Infinity = math.huge,
-	NaN = math.huge - math.huge
+	NaN = math.huge - math.huge,
 }
 
 ---Converts a vector table into a Figura vector
@@ -503,7 +503,7 @@ local decodeTypes = {
 	---@return FOXSkullAPI.JSON.Fragment
 	Fragment = function(v)
 		return setmetatable(v, { __type = "Fragment" })
-	end
+	end,
 }
 
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
@@ -610,7 +610,7 @@ end
 ---Converts json numbers into Lua strings
 ---@type {[string]: string}
 local formatStrings = {
-	nan = "NaN"
+	nan = "NaN",
 }
 
 ---Converts the Figura type into a formatted string
@@ -702,12 +702,18 @@ local formatTypes = {
 	end,
 }
 
+---@type table<string, string>
+local formatCache = {}
+
 ---Formats the given table and returns a prettified string
 ---@param tbl table
 ---@return string?
 function json.format(tbl)
+	local key = toJson(tbl)
+	if formatCache[key] then return formatCache[key] end
+
 	local fig, i = {}, 0
-	
+
 	---@param val any
 	---@return string
 	local function push(val)
@@ -716,7 +722,7 @@ function json.format(tbl)
 		fig[x] = val
 		return "${" .. x .. "}"
 	end
-	
+
 	---@param curr any
 	---@return any
 	local function rawType(curr)
@@ -805,6 +811,7 @@ function json.format(tbl)
 		:gsub(pattern, function(s) return chars[s] and chars[s](s) or s end) -- Format json string
 		:gsub("", "§")                                                -- Replace sub chars with legacy formatting code
 
+	formatCache[key] = str
 	return str
 end
 
