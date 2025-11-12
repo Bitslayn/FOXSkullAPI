@@ -45,7 +45,7 @@ local soundNames = {}
 ---@type {[string]: string|integer[]}
 local soundData = {}
 
-for name, data in pairs(avatar:getNBT().sounds) do
+for name, data in pairs(avatar:getNBT().sounds or {}) do
 	soundNames[sounds[name]] = name
 	soundData[name] = data
 end
