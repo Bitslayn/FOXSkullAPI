@@ -430,20 +430,37 @@ end
 --#ENDREGION
 --#REGION Decode
 
+---Converts json numbers into Lua numbers
+---@type {[string]: number}
+local decodeStrings = {
+	Infinity = math.huge,
+	NaN = math.huge - math.huge
+}
+
+---Converts a vector table into a Figura vector
+---@param v number[]
+---@return Vector.any
+local function decodeVector(v)
+	for i = 1, #v do
+		v[i] = decodeStrings[v[i]] or v[i]
+	end
+	return vec(table.unpack(v))
+end
+
 ---Converts the value into a Figura type
 ---@type {[string]: fun(v: any): any}
 local decodeTypes = {
 	---@param v number[]
 	---@return Vector.any
 	Vector = function(v)
-		return vec(table.unpack(v))
+		return decodeVector(v)
 	end,
 	---@param v number[][]
 	---@return Matrix.any
 	Matrix = function(v)
 		local m = matrices["mat" .. #v]() --[[@as Matrix.any]]
 		for i = 1, #v do
-			m[i] = vec(table.unpack(v[i]))
+			m[i] = decodeVector(v[i])
 		end
 		return m
 	end,
@@ -486,7 +503,7 @@ local decodeTypes = {
 	---@return FOXSkullAPI.JSON.Fragment
 	Fragment = function(v)
 		return setmetatable(v, { __type = "Fragment" })
-	end,
+	end
 }
 
 ---Decodes the given JSON string into a table, supporting Figura's non-primitive types
@@ -496,6 +513,14 @@ function json.decode(str)
 	local tbl = parseJson(str)
 
 	local function unpack(curr)
+		-- Convert strings into numbers
+
+		if type(curr) == "string" then
+			curr = decodeStrings[curr] or curr
+		end
+
+		-- Convert Figura types
+
 		if type(curr) ~= "table" then return curr end
 		local unpacked = {}
 
@@ -581,6 +606,12 @@ end
 
 --#ENDREGION
 --#REGION Format
+
+---Converts json numbers into Lua strings
+---@type {[string]: string}
+local formatStrings = {
+	nan = "NaN"
+}
 
 ---Converts the Figura type into a formatted string
 ---@type {[string]: fun(v: any): name: string, type: string?}
@@ -676,22 +707,33 @@ local formatTypes = {
 ---@return string?
 function json.format(tbl)
 	local fig, i = {}, 0
-
+	
+	---@param val any
+	---@return string
+	local function push(val)
+		i = i + 1
+		local x = string.format("%x", i)
+		fig[x] = val
+		return "${" .. x .. "}"
+	end
+	
+	---@param curr any
+	---@return any
 	local function rawType(curr)
 		local t = type(curr)
 		local converted = {}
 
 		if formatTypes[t] then
-			i = i + 1
-
-			local x = string.format("%x", i)
 			local name, type = formatTypes[t](curr)
-			fig[x] = string.format(type and "e%s (%s)r" or "e%sr", name, type)
-			converted = "${" .. x .. "}"
+			converted = push(string.format(type and "e%s (%s)r" or "e%sr", name, type))
 		elseif t == "table" then
 			for k, v in pairs(curr) do
 				converted[k] = rawType(v)
 			end
+		elseif t == "number" then
+			converted = push(string.format("b%sr", formatStrings[tostring(curr)] or curr))
+		elseif t == "boolean" then
+			converted = push(string.format(curr and "a%sr" or "c%sr", tostring(curr)))
 		else
 			converted = curr
 		end
