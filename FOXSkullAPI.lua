@@ -709,7 +709,7 @@ local formatCache = {}
 ---@param tbl table
 ---@return string?
 function json.format(tbl)
-	local key = toJson(tbl)
+	local key = json.encode(tbl)
 	if formatCache[key] then return formatCache[key] end
 
 	local fig, i = {}, 0
