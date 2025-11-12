@@ -434,6 +434,7 @@ end
 ---@type {[string]: number}
 local decodeStrings = {
 	Infinity = math.huge,
+	["-Infinity"] = -math.huge,
 	NaN = math.huge - math.huge,
 }
 
@@ -719,7 +720,7 @@ function json.format(tbl)
 	local function push(...)
 		i = i + 1
 		local x = string.format("%x", i)
-		fig[x] = (({...})[3] and "%s%s (%s)r" or "%s%sr"):format(...)
+		fig[x] = (({ ... })[3] and "%s%s (%s)r" or "%s%sr"):format(...)
 		return "${" .. x .. "}"
 	end
 
