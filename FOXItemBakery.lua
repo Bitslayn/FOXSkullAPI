@@ -168,10 +168,10 @@ local function fillRegions(tex, u, v, w, h)
 
 	-- Expand regions horizontally
 
-	tex:applyFunc(u, v, w, h, function(col, x, y)
+	pcall(tex.applyFunc, tex, u, v, w, h, function(col, x, y)
 		x = x - u
 		y = y - v
-		if pos and col.a == 0 or (x == 0 and len > 0) then
+		if pos and col.a == 0 or (x < 1 and len > 0) then
 			push(x, y)
 
 			pos = nil
@@ -509,26 +509,31 @@ end
 ---@param vertical boolean?
 ---@return FOXItemBakery.item
 local function setFrame(self, frame, vertical)
+	frame = frame or 0
+
 	local u, v, w, h = self.u, self.v, self.w, self.h
 	local _u, _v = u or 0, v or 0
 
 	local t_w, t_h = self.texture:getDimensions():unpack()
 	local f_w, f_h = t_w / w, t_h / h
 
-	-- Normalize frame
+	-- Add current uv position to frame number
 
 	if vertical then
 		frame = frame + (_u / w * f_h) + _v / h
 	else
 		frame = frame + (_v / h * f_w) + _u / w
 	end
-	frame = math.floor(frame % (f_w * f_h))
+
+	-- Floor frame number, and loop frames after passing through bottom right sprite of image
+
+	frame = frame - frame % 1 % (f_w * f_h)
 
 	-- Calculate UV
 
 	if vertical then
-		_u = math.floor(frame / f_h) * w
 		_v = frame % f_h * h
+		_u = math.floor(frame / f_h) * w
 	else
 		_u = frame % f_w * w
 		_v = math.floor(frame / f_w) * h
