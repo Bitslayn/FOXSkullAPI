@@ -108,7 +108,7 @@ end
 ---@type table<string, string>
 local textureAliases = {}
 
-local textureLimitCount = 24
+local textureLimitCount = 64
 local texturesUsedCount = 0
 
 ---@type string[]

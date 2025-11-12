@@ -504,11 +504,37 @@ end
 ---Sets the current frame number
 ---
 ---Useful for animated textures
+---@param self FOXItemBakery.item
 ---@param frame integer?
----@return self
-function class:frame(frame)
-	local u, v = self.u, self.v
-	setUV(self, frame * self.w + (u or 0), v or 0)
+---@param vertical boolean?
+---@return FOXItemBakery.item
+local function setFrame(self, frame, vertical)
+	local u, v, w, h = self.u, self.v, self.w, self.h
+	local _u, _v = u or 0, v or 0
+
+	local t_w, t_h = self.texture:getDimensions():unpack()
+	local f_w, f_h = t_w / w, t_h / h
+
+	-- Normalize frame
+
+	if vertical then
+		frame = frame + (_u / w * f_h) + _v / h
+	else
+		frame = frame + (_v / h * f_w) + _u / w
+	end
+	frame = math.floor(frame % (f_w * f_h))
+
+	-- Calculate UV
+
+	if vertical then
+		_u = math.floor(frame / f_h) * w
+		_v = frame % f_h * h
+	else
+		_u = frame % f_w * w
+		_v = math.floor(frame / f_w) * h
+	end
+
+	setUV(self, _u, _v)
 	self.u, self.v = u, v
 	return self
 end
@@ -517,12 +543,20 @@ end
 ---
 ---Useful for animated textures
 ---@param frame integer?
+---@param vertical boolean?
 ---@return self
-function class:setFrame(frame)
-	local u, v = self.u, self.v
-	setUV(self, frame * self.w + (u or 0), v or 0)
-	self.u, self.v = u, v
-	return self
+function class:frame(frame, vertical)
+	return setFrame(self, frame, vertical)
+end
+
+---Sets the current frame number
+---
+---Useful for animated textures
+---@param frame integer?
+---@param vertical boolean?
+---@return self
+function class:setFrame(frame, vertical)
+	return setFrame(self, frame, vertical)
 end
 
 --#ENDREGION
