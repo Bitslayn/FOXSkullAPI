@@ -1574,8 +1574,6 @@ local function try(self, f, ...)
 	priv.tooltip = result
 end
 
-local onMax = avatar:getMaxWorldTickCount() == 2 ^ 31 - 1 and avatar:getMaxRenderCount() == 2 ^ 31 - 1
-
 ---@param self FOXSkull.any
 ---@param state boolean
 local function skullInit(self, state)
@@ -1589,8 +1587,6 @@ local function skullInit(self, state)
 	-- Tries to call the appropriate event functions defined by the user
 
 	try(self, function()
-		assert(onMax, "FOXPlayerSkull requires max permissions!", 4)
-
 		local this = self --[[@as FOXSkull.block]].block or self --[[@as FOXSkull.item]].item
 		---@diagnostic disable-next-line: param-type-mismatch
 		for _, func in pairs(skullEvents[k1]) do func(self, this) end
