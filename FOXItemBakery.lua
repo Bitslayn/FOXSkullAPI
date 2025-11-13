@@ -6,9 +6,6 @@ ____  ___ __   __
 FOX's Item Bakery v1.0.0-dev
 ]]
 
--- THIS WORKS BUT THERE IS A MODELPART LEAK
--- I WILL REWRITE THE MODELPARTS SO THAT THEY ARE TAKEN BY THE SKULL API IN A MORE PREDICTABLE WAY SOON
-
 --==============================================================================================================================
 --#REGION ˚♡ Bakery ♡˚
 --==============================================================================================================================
