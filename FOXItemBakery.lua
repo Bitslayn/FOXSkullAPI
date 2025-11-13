@@ -649,7 +649,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:pos(pos, mode)
-	return distribute(self.pose, "transform", pos, mode) and self:updateMatrices() or self
+	return distribute(self.pose, "translation", pos, mode) and self:updateMatrices() or self
 end
 
 ---Sets this item's position
@@ -657,7 +657,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setPos(pos, mode)
-	return distribute(self.pose, "transform", pos, mode) and self:updateMatrices() or self
+	return distribute(self.pose, "translation", pos, mode) and self:updateMatrices() or self
 end
 
 ---Gets this item's current position
@@ -665,7 +665,7 @@ end
 ---@return Vector3
 function class:getPos(mode)
 	mode = mode and string.upper(mode)
-	return self.pose[mode].transform
+	return self.pose[mode].translation
 end
 
 ---Sets this item's offset position
@@ -673,7 +673,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:offsetPos(pos, mode)
-	return distribute(self.offset, "transform", pos, mode) and self:updateMatrices() or self
+	return distribute(self.offset, "translation", pos, mode) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset position
@@ -681,7 +681,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setOffsetPos(pos, mode)
-	return distribute(self.offset, "transform", pos, mode) and self:updateMatrices() or self
+	return distribute(self.offset, "translation", pos, mode) and self:updateMatrices() or self
 end
 
 ---Gets this item's current offset position
@@ -689,7 +689,7 @@ end
 ---@return Vector3
 function class:getOffsetPos(mode)
 	mode = mode and string.upper(mode)
-	return self.offset[mode].transform
+	return self.offset[mode].translation
 end
 
 --#ENDREGION
