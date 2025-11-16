@@ -413,9 +413,10 @@ end
 ------------------------------------------------------------------------------------------------
 
 ---Sets this item's pose, resetting all custom transformations
+---@param self FOXItemBakery.item
 ---@param pose FOXItemBakery.pose
----@return self
-function class:setPose(pose)
+---@return FOXItemBakery.item
+local function setPose(self, pose)
 	---@type FOXItemBakery.priv
 	local priv = self[1]
 	pose = pose and string.upper(pose) or "DEFAULT"
@@ -432,6 +433,20 @@ function class:setPose(pose)
 	end
 
 	return self:updateMatrices()
+end
+
+---Sets this item's pose, resetting all custom transformations
+---@param pose FOXItemBakery.pose
+---@return self
+function class:pose(pose)
+	return setPose(self, pose)
+end
+
+---Sets this item's pose, resetting all custom transformations
+---@param pose FOXItemBakery.pose
+---@return self
+function class:setPose(pose)
+	return setPose(self, pose)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -468,8 +483,23 @@ end
 ---@param w integer?
 ---@param h integer?
 ---@return self
+function class:texture(tex, w, h)
+	return setTexture(self, tex, w, h)
+end
+
+---Sets this item's texture
+---@param tex Texture
+---@param w integer?
+---@param h integer?
+---@return self
 function class:setTexture(tex, w, h)
 	return setTexture(self, tex, w, h)
+end
+
+---Returns this item's texture
+---@return Texture?
+function class:getTexture()
+	return self[1].texture
 end
 
 --#ENDREGION
