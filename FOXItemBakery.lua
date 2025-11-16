@@ -341,19 +341,22 @@ end
 --==============================================================================================================================
 
 ---@class FOXItemBakery
-local bakery = {}
+local bakery = { poses = poses }
+
+---@class FOXItemBakery.priv
+---@field pose table<ItemTask.displayMode, FOXItemBakery.transform>
+---@field offset table<ItemTask.displayMode, FOXItemBakery.transform>
+---@field texture Texture?
+---@field u integer?
+---@field v integer?
+---@field w integer?
+---@field h integer?
+---@field res integer?
+---@field queue boolean?
 
 ---@class FOXItemBakery.item
 ---@field parts table<ItemTask.displayMode, ModelPart>
----@field pose table<ItemTask.displayMode, FOXItemBakery.transform>
----@field offset table<ItemTask.displayMode, FOXItemBakery.transform>
----@field texture Texture
----@field u integer
----@field v integer
----@field w integer
----@field h integer
----@field res integer
----@field queue boolean?
+---@field package [1] FOXItemBakery.priv
 local class = {
 	["FOXSkull$model"] = "parts",
 	["FOXSkull$contexts"] = {
@@ -380,14 +383,17 @@ class.__index = class
 ---@param pose FOXItemBakery.pose?
 ---@return FOXItemBakery.item?
 function bakery.newItem(tex, pose)
-	local self = setmetatable({
-		parts = {},
+	---@type FOXItemBakery.priv
+	---@diagnostic disable-next-line: missing-fields
+	local priv = {
+		pose = {},
 		offset = {},
-	}, class)
+	}
+	local self = setmetatable({ parts = {}, [1] = priv }, class)
 
 	self:setPose(pose)
 
-	for k in pairs(self.pose) do
+	for k in pairs(priv.pose) do
 		local itm = models:newPart(k)
 		---@diagnostic disable-next-line: unused-local
 		local pvt = itm:newPart("pvt")
@@ -410,17 +416,19 @@ end
 ---@param pose FOXItemBakery.pose
 ---@return self
 function class:setPose(pose)
+	---@type FOXItemBakery.priv
+	local priv = self[1]
 	pose = pose and string.upper(pose) or "DEFAULT"
 
 	---@type FOXItemBakery.transform
-	self.pose = {}
+	priv.pose = {}
 	for k, v in pairs(poses[pose]) do
-		self.pose[k] = {
+		priv.pose[k] = {
 			rotation = v.rotation,
 			translation = v.translation,
 			scale = v.scale,
 		}
-		if not self.offset[k] then self.offset[k] = {} end
+		if not priv.offset[k] then priv.offset[k] = {} end
 	end
 
 	return self:updateMatrices()
@@ -439,14 +447,16 @@ end
 ---@param h integer?
 ---@return FOXItemBakery.item
 local function setTexture(self, tex, w, h)
-	self.texture = tex
+	---@type FOXItemBakery.priv
+	local priv = self[1]
+	priv.texture = tex
 
-	local _w, _h = self.texture:getDimensions():unpack()
-	self.w, self.h = w or _w, h or _h
+	local _w, _h = priv.texture:getDimensions():unpack()
+	priv.w, priv.h = w or _w, h or _h
 
-	local res = 1 / (self.h / 16)
-	local changed = res ~= self.res
-	self.res = res
+	local res = 1 / (priv.h / 16)
+	local changed = res ~= priv.res
+	priv.res = res
 
 	self:updateModel()
 
@@ -471,8 +481,10 @@ end
 ---@param v integer?
 ---@return FOXItemBakery.item
 local function setUV(self, u, v)
+	---@type FOXItemBakery.priv
+	local priv = self[1]
 	u, v = u or 0, v or 0
-	self.u, self.v = u, v
+	priv.u, priv.v = u, v
 
 	self:updateModel()
 
@@ -506,12 +518,14 @@ end
 ---@param vertical boolean?
 ---@return FOXItemBakery.item
 local function setFrame(self, frame, vertical)
+	---@type FOXItemBakery.priv
+	local priv = self[1]
 	frame = frame or 0
 
-	local u, v, w, h = self.u, self.v, self.w, self.h
+	local u, v, w, h = priv.u, priv.v, priv.w, priv.h
 	local _u, _v = u or 0, v or 0
 
-	local t_w, t_h = self.texture:getDimensions():unpack()
+	local t_w, t_h = priv.texture:getDimensions():unpack()
 	local f_w, f_h = t_w / w, t_h / h
 
 	-- Add current uv position to frame number
@@ -537,7 +551,7 @@ local function setFrame(self, frame, vertical)
 	end
 
 	setUV(self, _u, _v)
-	self.u, self.v = u, v
+	priv.u, priv.v = u, v
 	return self
 end
 
@@ -606,7 +620,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:rot(rot, mode)
-	return distribute(self.pose, "rotation", pack(rot, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "rotation", pack(rot, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's rotation
@@ -616,7 +630,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:rot(x, y, z, mode)
-	return distribute(self.pose, "rotation", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "rotation", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's rotation
@@ -624,7 +638,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:setRot(rot, mode)
-	return distribute(self.pose, "rotation", pack(rot, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "rotation", pack(rot, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's rotation
@@ -634,7 +648,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:setRot(x, y, z, mode)
-	return distribute(self.pose, "rotation", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "rotation", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Gets this item's current rotation
@@ -642,7 +656,7 @@ end
 ---@return Vector3
 function class:getRot(mode)
 	mode = mode and string.upper(mode)
-	return self.pose[mode].rotation
+	return self[1].pose[mode].rotation
 end
 
 ---Sets this item's offset rotation
@@ -650,7 +664,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:rot(rot, mode)
-	return distribute(self.offset, "rotation", pack(rot, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "rotation", pack(rot, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset rotation
@@ -660,7 +674,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:rot(x, y, z, mode)
-	return distribute(self.offset, "rotation", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "rotation", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset rotation
@@ -668,7 +682,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:setRot(rot, mode)
-	return distribute(self.offset, "rotation", pack(rot, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "rotation", pack(rot, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset rotation
@@ -678,7 +692,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:setRot(x, y, z, mode)
-	return distribute(self.offset, "rotation", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "rotation", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Gets this item's current offset rotation
@@ -686,7 +700,7 @@ end
 ---@return Vector3
 function class:getOffsetRot(mode)
 	mode = mode and string.upper(mode)
-	return self.offset[mode].rotation
+	return self[1].offset[mode].rotation
 end
 
 --#ENDREGION
@@ -697,7 +711,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:pos(pos, mode)
-	return distribute(self.pose, "translation", pack(pos, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "translation", pack(pos, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's position
@@ -707,7 +721,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:pos(x, y, z, mode)
-	return distribute(self.pose, "translation", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "translation", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's position
@@ -715,7 +729,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setPos(pos, mode)
-	return distribute(self.pose, "translation", pack(pos, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "translation", pack(pos, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's position
@@ -725,7 +739,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setPos(x, y, z, mode)
-	return distribute(self.pose, "translation", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "translation", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Gets this item's current position
@@ -733,7 +747,7 @@ end
 ---@return Vector3
 function class:getPos(mode)
 	mode = mode and string.upper(mode)
-	return self.pose[mode].translation
+	return self[1].pose[mode].translation
 end
 
 ---Sets this item's offset position
@@ -741,7 +755,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:offsetPos(pos, mode)
-	return distribute(self.offset, "translation", pack(pos, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "translation", pack(pos, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset position
@@ -751,7 +765,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:offsetPos(x, y, z, mode)
-	return distribute(self.offset, "translation", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "translation", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset position
@@ -759,7 +773,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setOffsetPos(pos, mode)
-	return distribute(self.offset, "translation", pack(pos, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "translation", pack(pos, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset position
@@ -769,7 +783,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setOffsetPos(x, y, z, mode)
-	return distribute(self.offset, "translation", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "translation", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Gets this item's current offset position
@@ -777,7 +791,7 @@ end
 ---@return Vector3
 function class:getOffsetPos(mode)
 	mode = mode and string.upper(mode)
-	return self.offset[mode].translation
+	return self[1].offset[mode].translation
 end
 
 --#ENDREGION
@@ -788,7 +802,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:scale(scale, mode)
-	return distribute(self.pose, "scale", pack(scale, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "scale", pack(scale, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's scale
@@ -798,7 +812,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:scale(x, y, z, mode)
-	return distribute(self.pose, "scale", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "scale", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's scale
@@ -806,7 +820,7 @@ end
 ---@param mode ItemTask.displayMode
 ---@return self
 function class:setScale(scale, mode)
-	return distribute(self.pose, "scale", pack(scale, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "scale", pack(scale, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's scale
@@ -816,7 +830,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setScale(x, y, z, mode)
-	return distribute(self.pose, "scale", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].pose, "scale", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Gets this item's current scale
@@ -824,7 +838,7 @@ end
 ---@return Vector3
 function class:getScale(mode)
 	mode = mode and string.upper(mode)
-	return self.pose[mode].scale
+	return self[1].pose[mode].scale
 end
 
 ---Sets this item's offset scale
@@ -832,7 +846,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:offsetScale(scale, mode)
-	return distribute(self.offset, "scale", pack(scale, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "scale", pack(scale, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset scale
@@ -842,7 +856,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:offsetScale(x, y, z, mode)
-	return distribute(self.offset, "scale", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "scale", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset scale
@@ -850,7 +864,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setOffsetScale(scale, mode)
-	return distribute(self.offset, "scale", pack(scale, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "scale", pack(scale, mode)) and self:updateMatrices() or self
 end
 
 ---Sets this item's offset scale
@@ -860,7 +874,7 @@ end
 ---@param mode ItemTask.displayMode?
 ---@return self
 function class:setOffsetScale(x, y, z, mode)
-	return distribute(self.offset, "scale", pack(x, y, z, mode)) and self:updateMatrices() or self
+	return distribute(self[1].offset, "scale", pack(x, y, z, mode)) and self:updateMatrices() or self
 end
 
 ---Gets this item's current offset scale
@@ -868,7 +882,7 @@ end
 ---@return Vector3
 function class:getOffsetScale(mode)
 	mode = mode and string.upper(mode)
-	return self.offset[mode].scale
+	return self[1].offset[mode].scale
 end
 
 --#ENDREGION
@@ -882,18 +896,20 @@ local zeroVec, oneVec = vectors.vec3(), vectors.vec3() + 1
 ---Update's this item's matrices
 ---@return self
 function class:updateMatrices()
+	---@type FOXItemBakery.priv
+	local priv = self[1]
 	for mode, mdp in pairs(self.parts) do
 		mdp.pvt.preRender = function(_, _, part)
-			local pose = self.pose[mode]
-			local offset = self.offset[mode]
+			local pose = priv.pose[mode]
+			local offset = priv.offset[mode]
 
 			local pos = (pose.translation or zeroVec) + (offset.translation or zeroVec)
 			local rot = (pose.rotation or zeroVec) + (offset.rotation or zeroVec)
 			local scl = (pose.scale or oneVec) * (offset.scale or oneVec)
 
 			local mat = matrices.mat4()
-				:translate(self.w / 2, self.h / 2, -0.5)
-				:scale(self.res, self.res, 1)
+				:translate(priv.w / 2, priv.h / 2, -0.5)
+				:scale(priv.res, priv.res, 1)
 				:scale(scl)
 				:rotateZ(rot.x)
 				:rotateY(rot.y)
@@ -927,14 +943,16 @@ end
 ---Update's this item's model
 ---@return self
 function class:updateModel()
-	if not self.texture then return self end
+	---@type FOXItemBakery.priv
+	local priv = self[1]
+	if not priv.texture then return self end
 
-	local u, v, w, h = self.u or 0, self.v or 0, self.w, self.h
+	local u, v, w, h = priv.u or 0, priv.v or 0, priv.w, priv.h
 
-	local _extruded = bakeExtruded(self.texture, u, v, w, h):visible(true)
-	local _flat = bakeFlat(self.texture, u, v, w, h):visible(true)
+	local _extruded = bakeExtruded(priv.texture, u, v, w, h):visible(true)
+	local _flat = bakeFlat(priv.texture, u, v, w, h):visible(true)
 
-	for k in pairs(self.pose) do
+	for k in pairs(priv.pose) do
 		local model = k ~= "GUI" and _extruded or _flat
 
 		local pvt = self.parts[k].pvt
