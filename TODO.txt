@@ -1,6 +1,3 @@
--- PR sound fixes into Figura (Expose name and data, and reregister sounds that became invalidated. Add invalidation detection. Also some small improvements such as getting the length of the sound currently playing, getting the current position, setting the current position, and potentially setting speed, negative speed and pitch separately)
--- Rewrite sound handler to just register all sound references as an index to get name, and write a custom __eq. Stable sound sources are redundant
--- Put modes and default head in separate script. Only expose class in main require
--- Add function to add poses
+-- Separate niche features into addons
 
 -- Work on the wiki
