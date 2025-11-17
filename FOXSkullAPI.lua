@@ -396,11 +396,6 @@ local skull = {}
 ---| "OTHER"                   Some other context. Used for ITEM_ENTITY, ITEM_FRAME, and GUI on 0.1.5
 ---@alias FOXSkull.context.any FOXSkull.context.block|FOXSkull.context.item
 
-local legacyContexts = {
-	RIGHT_HAND = "THIRD_PERSON_RIGHT_HAND",
-	LEFT_HAND = "THIRD_PERSON_LEFT_HAND",
-}
-
 ---@alias FOXSkull.render.block fun(delta: number, self: FOXSkull.block, block: BlockState)
 ---@alias FOXSkull.render.item fun(delta: number, self: FOXSkull.item, item: ItemStack)
 ---@alias FOXSkull.render.any fun(delta: number, self: FOXSkull.any)
@@ -1228,8 +1223,6 @@ local heldSkull
 function events.skull_render(delta, block, item, entity, context)
 	-- Update vars
 
-	context = legacyContexts[context] or context
-
 	---@type BlockState|ItemStack
 	local this = block or item
 
@@ -1504,48 +1497,48 @@ function skulls.newSkull(name, lore)
 	return self
 end
 
--- local classKeys = {
--- 	item = "item_init",
--- 	block = "block_init",
--- 	any = "skull_init",
--- }
+local classKeys = {
+	item = "item_init",
+	block = "block_init",
+	any = "skull_init",
+}
 
--- ---Creates a new skull mode which applies to all skulls with the name or mode variable
--- ---
--- ---Modes are applied on skull init, and the mode applied does not change when the variable is set after skull initialization
--- ---@param key string
--- ---@param class "item"|"block"|"any"?
--- ---@param part ModelPart?
--- ---@param init FOXSkullAPI.events.any?
--- ---@param render FOXSkull.render.any?
--- ---@param tick FOXSkull.tick.any?
--- ---@param onPunch FOXSkull.onPunch.any?
--- ---@overload fun(key: string, class: "block", part: ModelPart?, init: FOXSkullAPI.events.block?, render: FOXSkull.render.block?, tick: FOXSkull.tick.block?, onPunch: FOXSkull.onPunch.block?)
--- ---@overload fun(key: string, class: "item", part: ModelPart?, init: FOXSkullAPI.events.item?, render: FOXSkull.render.item?, tick: FOXSkull.tick.item?, onPunch: FOXSkull.onPunch.item?)
--- function skulls.newMode(key, class, part, init, render, tick, onPunch)
--- 	class = class or "any"
+---Creates a new skull mode which applies to all skulls with the name or mode variable
+---
+---Modes are applied on skull init, and the mode applied does not change when the variable is set after skull initialization
+---@param key string
+---@param class "item"|"block"|"any"?
+---@param part ModelPart?
+---@param init FOXSkullAPI.events.any?
+---@param render FOXSkull.render.any?
+---@param tick FOXSkull.tick.any?
+---@param onPunch FOXSkull.onPunch.any?
+---@overload fun(key: string, class: "block", part: ModelPart?, init: FOXSkullAPI.events.block?, render: FOXSkull.render.block?, tick: FOXSkull.tick.block?, onPunch: FOXSkull.onPunch.block?)
+---@overload fun(key: string, class: "item", part: ModelPart?, init: FOXSkullAPI.events.item?, render: FOXSkull.render.item?, tick: FOXSkull.tick.item?, onPunch: FOXSkull.onPunch.item?)
+function skulls.newMode(key, class, part, init, render, tick, onPunch)
+	class = class or "any"
 
--- 	assert(type(key) == "string", "String expected for param [1], got " .. type(key), 2)
--- 	assert(type(class) == "string", "String expected for param [2], got " .. type(class), 2)
--- 	assert(not part or type(part) == "ModelPart" or type(part) == "table",
--- 		"ModelPart expected for param [3], got " .. type(part), 2)
--- 	assert(not render or type(render) == "function", "Function expected for param [4], got " .. type(render), 2)
--- 	assert(not tick or type(tick) == "function", "Function expected for param [5], got " .. type(tick), 2)
--- 	assert(not onPunch or type(onPunch) == "function", "Function expected for param [6], got " .. type(onPunch), 2)
+	assert(type(key) == "string", "String expected for param [1], got " .. type(key), 2)
+	assert(type(class) == "string", "String expected for param [2], got " .. type(class), 2)
+	assert(not part or type(part) == "ModelPart" or type(part) == "table",
+		"ModelPart expected for param [3], got " .. type(part), 2)
+	assert(not render or type(render) == "function", "Function expected for param [4], got " .. type(render), 2)
+	assert(not tick or type(tick) == "function", "Function expected for param [5], got " .. type(tick), 2)
+	assert(not onPunch or type(onPunch) == "function", "Function expected for param [6], got " .. type(onPunch), 2)
 
--- 	---@type FOXSkullAPI.events.any
--- 	skulls[classKeys[class]] = function(self)
--- 		local mode = self:getVariable("mode") or self:getName()
--- 		if not mode:lower():find(key:lower()) then return end
+	---@type FOXSkullAPI.events.any
+	skulls[classKeys[class]] = function(self)
+		local mode = self:getVariable("mode") or self:getName()
+		if not mode:lower():find(key:lower()) then return end
 
--- 		self:model(part)
+		self:model(part)
 
--- 		init(self)
--- 		self.tick = tick
--- 		self.render = render
--- 		self.onPunch = onPunch
--- 	end
--- end
+		init(self)
+		self.tick = tick
+		self.render = render
+		self.onPunch = onPunch
+	end
+end
 
 ---Sets the ModelPart to use as the default for skulls
 ---@param model ModelPart?
