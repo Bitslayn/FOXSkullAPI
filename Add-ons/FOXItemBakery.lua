@@ -1000,6 +1000,14 @@ function class:updateModel()
 	return self
 end
 
+---Returns the item model of the given mode
+---@param mode ItemTask.displayMode
+---@return ModelPart
+function class:getModel(mode)
+	mode = mode and string.upper(mode)
+	return self.parts[mode]
+end
+
 --#ENDREGION
 
 return bakery
