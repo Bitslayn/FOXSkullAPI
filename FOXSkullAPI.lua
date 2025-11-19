@@ -1511,6 +1511,25 @@ function skulls.newSkull(name, lore)
 	return self
 end
 
+---Creates and returns a skull stack string
+---
+---Shortcut to running skulls.newSkull():setVariable():getItemStack():toStackString()
+---@param data table?
+---@return Minecraft.itemID
+function skulls.giveSkull(data)
+	local self = skulls.newSkull()
+	local vars = self:getVariable()
+
+	if type(data) == "table" then
+		setmetatable(data, nil)
+		for k, v in pairs(data) do
+			vars[k] = v
+		end
+	end
+
+	return self:getItemStack():toStackString()
+end
+
 local classKeys = {
 	item = "item_init",
 	block = "block_init",
@@ -1583,6 +1602,7 @@ local meta = {
 }
 
 avatar:store("FOXSkullAPI", __sign)
+avatar:store("FOXSkull$giveSkull", skulls.giveSkull)
 
 return setmetatable(skulls, meta)
 
