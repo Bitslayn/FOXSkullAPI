@@ -1523,7 +1523,7 @@ function skulls.giveSkull(data)
 	if type(data) == "table" then
 		setmetatable(data, nil)
 	elseif type(data) == "string" and isJson(data) then
-		data = parseJson(data)
+		data = parseJsonFOX(data)
 	else
 		data = {}
 	end
