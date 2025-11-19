@@ -1036,8 +1036,7 @@ local function new(key, entity)
 	local priv = self[1]
 
 	local data = self:getData(nil, nil, "FOXSkullAPI")
-	priv.hasVars = data ~= ""
-	priv.vars = priv.hasVars and isJson(data) and try(self, parseJsonFOX, data, self) or {}
+	priv.vars = isJson(data) and try(self, parseJsonFOX, data, self) or {}
 
 	if switch then
 		local id = getID(key, entity)
@@ -1365,6 +1364,7 @@ local function skullTick()
 	for _, self in pairs(all) do
 		local priv = self[1]
 		if priv.isErrored then goto continue end
+		priv.hasVars = next(priv.vars)
 
 		if self.tick then
 			try(self, self.tick, self, self --[[@as FOXSkull.block]].block or self --[[@as FOXSkull.item]].item)
@@ -1380,7 +1380,7 @@ local function skullTick()
 
 		::continue::
 	end
-
+	
 	if selected then
 		local priv = selected[1]
 
@@ -1390,10 +1390,6 @@ local function skullTick()
 			or debugEnabled and (FOXJson and FOXJson.format(priv.vars))
 			or nil
 		priv.tooltip = str
-
-		if debugEnabled then
-			priv.hasVars = str and true
-		end
 
 		if not str then return end
 		local off = client.getTextDimensions(str)
