@@ -1514,7 +1514,7 @@ end
 ---Creates and returns a skull stack string
 ---
 ---Shortcut to running skulls.newSkull():setVariable():getItemStack():toStackString()
----@param data table?
+---@param data table|string?
 ---@return Minecraft.itemID
 function skulls.giveSkull(data)
 	local self = skulls.newSkull()
@@ -1522,9 +1522,14 @@ function skulls.giveSkull(data)
 
 	if type(data) == "table" then
 		setmetatable(data, nil)
-		for k, v in pairs(data) do
-			vars[k] = v
-		end
+	elseif type(data) == "string" and isJson(data) then
+		data = parseJson(data)
+	else
+		data = {}
+	end
+
+	for k, v in pairs(data) do
+		vars[k] = v
 	end
 
 	return self:getItemStack():toStackString()
