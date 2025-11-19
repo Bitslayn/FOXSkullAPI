@@ -1380,7 +1380,7 @@ local function skullTick()
 
 		::continue::
 	end
-	
+
 	if selected then
 		local priv = selected[1]
 
@@ -1442,6 +1442,24 @@ end
 function events.world_render()
 	if player:isLoaded() then return end
 	flushRender()
+end
+
+---@type Event.OnPlaySound.func
+local function on_play_sound(id, pos, _, _, _, _, path)
+	if not path or id ~= "minecraft:block.stone.break" then return end
+
+	local timer = 0
+	local function deinit_render()
+		timer = timer + 1
+		if timer < 2 then return end
+		remove(world.getBlockState(pos))
+		events.world_render:remove(deinit_render)
+	end
+	events.world_render = deinit_render
+end
+
+function events.on_play_sound(...)
+	pcall(on_play_sound, ...)
 end
 
 function events.resource_reload()
