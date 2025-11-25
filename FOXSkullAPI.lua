@@ -70,24 +70,6 @@ end
 --#REGION ˚♡ FOXSkull > Groups ♡˚
 ------------------------------------------------------------------------------------------------
 
---[[ Dev note:
-	This enum is written like a tree to avoid recursion
-	There is nothing preventing the ungroup function from forming an infinite loop, and as such, the structure of this table should be kept linear
-]]
-
----@enum FOXSkullAPI.Groups.Enum
-local context_groups = {
-	LEFT_HAND = { "FIRST_PERSON_LEFT_HAND", "THIRD_PERSON_LEFT_HAND" },
-	RIGHT_HAND = { "FIRST_PERSON_RIGHT_HAND", "THIRD_PERSON_RIGHT_HAND" },
-	FIRST_PERSON = { "FIRST_PERSON_LEFT_HAND", "FIRST_PERSON_RIGHT_HAND" },
-	THIRD_PERSON = { "THIRD_PERSON_LEFT_HAND", "THIRD_PERSON_RIGHT_HAND" },
-	HANDS = { "LEFT_HAND", "RIGHT_HAND" },
-	CONTAINER = { "GUI", "OTHER" },
-	ITEM = { "HANDS", "HEAD", "FIXED", "GROUND", "CONTAINER" },
-	BLOCK = { "FLOOR_BLOCK", "WALL_BLOCK" },
-	ALL = { "ITEM", "BLOCK" },
-}
-
 ---@alias FOXSkullAPI.Groups
 ---| "HANDS" Skull held in either hand
 ---| "LEFT_HAND" Skull held in left hand
@@ -108,6 +90,19 @@ local context_groups = {
 ---| "ALL" Any skull
 ---| "OTHER" Fallback context
 
+---@type table<string, string[]>
+local context_groups = {
+	left_hand = { "first_person_left_hand", "third_person_left_hand" },
+	right_hand = { "first_person_right_hand", "third_person_right_hand" },
+	first_person = { "first_person_left_hand", "first_person_right_hand" },
+	third_person = { "third_person_left_hand", "third_person_right_hand" },
+	hands = { "left_hand", "right_hand" },
+	container = { "gui", "other" },
+	item = { "hands", "head", "fixed", "ground", "container" },
+	block = { "floor_block", "wall_block" },
+	all = { "item", "block" },
+}
+
 ---Gives a table containing contexts in the given group
 ---@param v FOXSkullAPI.Groups
 ---@return FOXSkullAPI.Groups[]
@@ -126,7 +121,7 @@ local function ungroup(v)
 		end
 	end
 
-	p(string.upper(v))
+	p(string.lower(v))
 
 	return r
 end
