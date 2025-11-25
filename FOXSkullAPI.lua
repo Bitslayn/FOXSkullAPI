@@ -17,34 +17,33 @@ Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 --#REGION ˚♡ Utilities > Assert ♡˚
 ------------------------------------------------------------------------------------------------
 
----Raises an error if the value of its argument v is false (i.e., `nil` or `false`); otherwise, returns all its arguments. In case of error, `message` is the error object; when absent, it defaults to `"assertion failed!"`
+---Custom assertion function with integer level
 ---@generic T
 ---@param v? T
----@param message? any
----@param level? integer
+---@param m? any
+---@param l? integer
 ---@return T v
-local function assert(v, message, level)
-	return v or error(message or "Assertion failed!", (level or 1) + 1)
+local function assert(v, m, l)
+	return v or error(m, (l or 1) + 1)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ Utilities > Find Script ♡˚
 ------------------------------------------------------------------------------------------------
 
-local pathJson = toJson(listFiles(nil, true))
+local path_json = toJson(listFiles(nil, true))
 
 ---Returns the script path that matches the given pattern
----@param pattern string
+---@param p string
 ---@return string?
-local function findScript(pattern)
-	local formattedPattern = pattern
+local function path(p)
+	return path_json:match(p
 		:gsub('"', '\\"') -- Escape all quotation marks
 		:gsub("^%^", '%%f[^"]') -- Replace start of pattern ^ with "
 		:gsub("%$$", '%%f["]') -- Replace end of pattern $ with "
 		:gsub("^", '[^"]*') -- Pad start of pattern to "
 		:gsub("$", '[^"]*') -- Pad end of pattern to "
-
-	return pathJson:match(formattedPattern)
+	)
 end
 
 --#ENDREGION
