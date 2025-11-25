@@ -10,8 +10,130 @@ Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 ]]
 
 --==============================================================================================================================
---#REGION ˚♡ Events ♡˚
+--#REGION ˚♡ Utilities ♡˚
 --==============================================================================================================================
+
+------------------------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Assert ♡˚
+------------------------------------------------------------------------------------------------
+
+---Raises an error if the value of its argument v is false (i.e., `nil` or `false`); otherwise, returns all its arguments. In case of error, `message` is the error object; when absent, it defaults to `"assertion failed!"`
+---@generic T
+---@param v? T
+---@param message? any
+---@param level? integer
+---@return T v
+local function assert(v, message, level)
+	return v or error(message or "Assertion failed!", (level or 1) + 1)
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ Utilities > Find Script ♡˚
+------------------------------------------------------------------------------------------------
+
+local pathJson = toJson(listFiles(nil, true))
+
+---Returns the script path that matches the given pattern
+---@param pattern string
+---@return string?
+local function findScript(pattern)
+	local formattedPattern = pattern
+		:gsub('"', '\\"') -- Escape all quotation marks
+		:gsub("^%^", '%%f[^"]') -- Replace start of pattern ^ with "
+		:gsub("%$$", '%%f["]') -- Replace end of pattern $ with "
+		:gsub("^", '[^"]*') -- Pad start of pattern to "
+		:gsub("$", '[^"]*') -- Pad end of pattern to "
+
+	return pathJson:match(formattedPattern)
+end
+
+--#ENDREGION
+
+--#ENDREGION --=================================================================================================================
+--#REGION ˚♡ FOXSkull ♡˚
+--==============================================================================================================================
+
+---@class FOXSkullAPI.Skulls.Any
+
+---@class FOXSkullAPI.Skulls.Block: FOXSkullAPI.Skulls.Any
+
+---@class FOXSkullAPI.Skulls.Item: FOXSkullAPI.Skulls.Any
+
+---@alias FOXSkullAPI.Functions.Any fun(skull: FOXSkullAPI.Skulls.Any)
+---@alias FOXSkullAPI.Functions.Block fun(skull: FOXSkullAPI.Skulls.Block, block: BlockState)
+---@alias FOXSkullAPI.Functions.Item fun(skull: FOXSkullAPI.Skulls.Item, item: ItemStack)
+---@alias FOXSkullAPI.Functions.Render fun(delta: number, skull: FOXSkullAPI.Skulls.Any, ctx: Event.SkullRender.context)
+---@alias FOXSkullAPI.Functions.Tick fun(skull: FOXSkullAPI.Skulls.Any)
+---@alias FOXSkullAPI.Functions.Other fun(skull: FOXSkullAPI.Skulls.Any)
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Groups ♡˚
+------------------------------------------------------------------------------------------------
+
+--[[ Dev note:
+	This enum is written like a tree to avoid recursion
+	There is nothing preventing the ungroup function from forming an infinite loop, and as such, the structure of this table should be kept linear
+]]
+
+---@enum FOXSkullAPI.Groups.Enum
+local context_groups = {
+	LEFT_HAND = { "FIRST_PERSON_LEFT_HAND", "THIRD_PERSON_LEFT_HAND" },
+	RIGHT_HAND = { "FIRST_PERSON_RIGHT_HAND", "THIRD_PERSON_RIGHT_HAND" },
+	FIRST_PERSON = { "FIRST_PERSON_LEFT_HAND", "FIRST_PERSON_RIGHT_HAND" },
+	THIRD_PERSON = { "THIRD_PERSON_LEFT_HAND", "THIRD_PERSON_RIGHT_HAND" },
+	HANDS = { "LEFT_HAND", "RIGHT_HAND" },
+	CONTAINER = { "GUI", "OTHER" },
+	ITEM = { "HANDS", "HEAD", "FIXED", "GROUND", "CONTAINER" },
+	BLOCK = { "FLOOR_BLOCK", "WALL_BLOCK" },
+	ALL = { "ITEM", "BLOCK" },
+}
+
+---@alias FOXSkullAPI.Groups
+---| "HANDS" Skull held in either hand
+---| "LEFT_HAND" Skull held in left hand
+---| "RIGHT_HAND" Skull held in right hand
+---| "FIRST_PERSON" Skull held in either hand, in first person
+---| "THIRD_PERSON" Skull held in either hand, in third person
+---| "FIRST_PERSON_LEFT_HAND" Skull held in the left hand, in first person
+---| "FIRST_PERSON_RIGHT_HAND" Skull held in the right hand, in first person
+---| "THIRD_PERSON_LEFT_HAND" Skull held in the left hand, in third person
+---| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
+---| "ITEM" Any skull item
+---| "CONTAINER" Skull inside an inventory or GUI **In Figura 0.1.5, this would also target skulls displayed on the floor and in an item frame**
+---| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
+---| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
+---| "BLOCK" Any skull block
+---| "FLOOR_BLOCK" Skull placed on the floor
+---| "WALL_BLOCK" Skull placed on a wall
+---| "ALL" Any skull
+---| "OTHER" Fallback context
+
+---Gives a table containing contexts in the given group
+---@param v FOXSkullAPI.Groups
+---@return FOXSkullAPI.Groups[]
+local function ungroup(v)
+	local r = {}
+
+	---@param g string
+	local function p(g)
+		local t = context_groups[g]
+		if t then
+			for _, h in ipairs(t) do
+				p(h)
+			end
+		else
+			table.insert(r, g)
+		end
+	end
+
+	p(string.upper(v))
+
+	return r
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Events ♡˚
+------------------------------------------------------------------------------------------------
 
 ---Optimizes and allows for calling events
 local event_meta = {
@@ -48,8 +170,68 @@ local event_meta = {
 	end,
 }
 
----Proxies the event tables, allowing for adding new events by calling a __newindex
-local event_proxy_meta = {
+---@class FOXSkullAPI.Events
+local skull_event = {
+	---Called whenever any skull starts rendering. This is called alongside block_init or item_init.
+	---@type FOXSkullAPI.Functions.Any[]
+	skull_init = setmetatable({}, event_meta),
+	---Called whenever skulls have started rendering blocks.
+	---@type FOXSkullAPI.Functions.Block[]
+	block_init = setmetatable({}, event_meta),
+	---Called whenever skulls have started rendering on an entity, or inside a container.
+	---@type FOXSkullAPI.Functions.Item[]
+	item_init = setmetatable({}, event_meta),
+	---Called whenever any skull stops rendering. This is called alongside block_deinit or item_deinit.
+	---@type FOXSkullAPI.Functions.Any[]
+	skull_deinit = setmetatable({}, event_meta),
+	---Called whenever skulls have stopped rendering as blocks.
+	---@type FOXSkullAPI.Functions.Block[]
+	block_deinit = setmetatable({}, event_meta),
+	---Called whenever skulls have stopped rendering on an entity, or inside a container.
+	---@type FOXSkullAPI.Functions.Item[]
+	item_deinit = setmetatable({}, event_meta),
+	---Called on each skull that renders regardless of its type, for each context it renders in, before updating its model and calling its render function.
+	---@type FOXSkullAPI.Functions.Render[]
+	pre_render = setmetatable({}, event_meta),
+	---Called on each skull that renders regardless of its type, for each context it renders in, after updating its model and calling its render function.
+	---@type FOXSkullAPI.Functions.Render[]
+	post_render = setmetatable({}, event_meta),
+	---Called on each skull that renders but only once per tick just like the skull_tick function. Ran before running the skull's tick function.
+	---@type FOXSkullAPI.Functions.Tick[]
+	pre_tick = setmetatable({}, event_meta),
+	---Called on each skull that renders but only once per tick just like the skull_tick function. Ran after running the skull's tick function.
+	---@type FOXSkullAPI.Functions.Tick[]
+	post_tick = setmetatable({}, event_meta),
+	---Called on a skull that errors.
+	---@type FOXSkullAPI.Functions.Other[]
+	skull_error = setmetatable({}, event_meta),
+}
+
+--#ENDREGION --=================================================================================================================
+--#REGION ˚♡ FOXSkullAPI ♡˚
+--==============================================================================================================================
+
+---@class FOXSkullAPI.Index
+---@field protected [string] FOXSkullAPI.Skulls.Any?
+---@field protected [BlockState] FOXSkullAPI.Skulls.Block?
+---@field protected [ItemStack] FOXSkullAPI.Skulls.Item?
+---@field protected [Vector3] FOXSkullAPI.Skulls.Block?
+
+---TODO Add quick start guide and link to wiki here
+---@class FOXSkullAPI: FOXSkullAPI.Index
+---@field block_init FOXSkullAPI.Functions.Block
+---@field item_init FOXSkullAPI.Functions.Item
+---@field skull_init FOXSkullAPI.Functions.Any
+---@field block_deinit FOXSkullAPI.Functions.Block
+---@field item_deinit FOXSkullAPI.Functions.Item
+---@field skull_deinit FOXSkullAPI.Functions.Any
+---@field pre_render FOXSkullAPI.Functions.Render
+---@field post_render FOXSkullAPI.Functions.Render
+---@field pre_tick FOXSkullAPI.Functions.Tick
+---@field post_tick FOXSkullAPI.Functions.Tick
+---@field skull_error FOXSkullAPI.Functions.Other
+---@field protected [1] FOXSkullAPI.Events
+local skulls = setmetatable({}, {
 	__index = function(s, k)
 		return s[1][k]
 	end,
@@ -62,71 +244,9 @@ local event_proxy_meta = {
 
 		table.insert(s[k], v)
 	end,
-}
+})
 
----@alias FOXSkullAPI.Functions.Block fun(skull: FOXSkull.block, block: BlockState)
----@alias FOXSkullAPI.Functions.Item fun(skull: FOXSkull.item, item: ItemStack)
----@alias FOXSkullAPI.Functions.Any fun(skull: FOXSkull.any)
----@alias FOXSkullAPI.Functions.Render fun(delta: number, skull: FOXSkull.any, ctx: Event.SkullRender.context)
----@alias FOXSkullAPI.Functions.Tick fun(skull: FOXSkull.any)
----@alias FOXSkullAPI.Functions.Other fun(skull: FOXSkull.any)
-
----@class FOXSkullAPI.Events
----@field block_init FOXSkullAPI.Functions.Block
----@field item_init FOXSkullAPI.Functions.Item
----@field skull_init FOXSkullAPI.Functions.Any
----@field block_deinit FOXSkullAPI.Functions.Block
----@field item_deinit FOXSkullAPI.Functions.Item
----@field skull_deinit FOXSkullAPI.Functions.Any
----@field pre_render FOXSkullAPI.Functions.Render
----@field post_render FOXSkullAPI.Functions.Render
----@field pre_tick FOXSkullAPI.Functions.Tick
----@field post_tick FOXSkullAPI.Functions.Tick
----@field skull_error FOXSkullAPI.Functions.Other
-
-local skull_event = {
-	---Called whenever any skull starts rendering. This is called alongside block_init or item_init.
-	skull_init = setmetatable({}, event_meta),
-	---Called whenever skulls have started rendering blocks.
-	block_init = setmetatable({}, event_meta),
-	---Called whenever skulls have started rendering on an entity, or inside a container.
-	item_init = setmetatable({}, event_meta),
-	---Called whenever any skull stops rendering. This is called alongside block_deinit or item_deinit.
-	skull_deinit = setmetatable({}, event_meta),
-	---Called whenever skulls have stopped rendering as blocks.
-	block_deinit = setmetatable({}, event_meta),
-	---Called whenever skulls have stopped rendering on an entity, or inside a container.
-	item_deinit = setmetatable({}, event_meta),
-	---Called on each skull that renders regardless of its type, for each context it renders in, before updating its model and calling its render function.
-	pre_render = setmetatable({}, event_meta),
-	---Called on each skull that renders regardless of its type, for each context it renders in, after updating its model and calling its render function.
-	post_render = setmetatable({}, event_meta),
-	---Called on each skull that renders but only once per tick just like the skull_tick function. Ran before running the skull's tick function.
-	pre_tick = setmetatable({}, event_meta),
-	---Called on each skull that renders but only once per tick just like the skull_tick function. Ran after running the skull's tick function.
-	post_tick = setmetatable({}, event_meta),
-	---Called on a skull that errors.
-	skull_error = setmetatable({}, event_meta),
-}
-
---#ENDREGION --=================================================================================================================
---#REGION ˚♡ FOXSkull ♡˚
---==============================================================================================================================
-
---#ENDREGION --=================================================================================================================
---#REGION ˚♡ FOXSkullAPI ♡˚
---==============================================================================================================================
-
----@class FOXSkullAPI.Index
----@field protected [string] FOXSkull.any?
----@field protected [BlockState] FOXSkull.block?
----@field protected [ItemStack] FOXSkull.item?
----@field protected [Vector3] FOXSkull.block?
-
----@class FOXSkullAPI: FOXSkullAPI.Events, FOXSkullAPI.Index
-local skulls = setmetatable({
-	[1] = skull_event,
-}, event_proxy_meta)
+rawset(skulls, 1, skull_event)
 
 return skulls
 
