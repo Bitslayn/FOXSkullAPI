@@ -56,20 +56,39 @@ end
 ---@field block BlockState?
 ---@field item ItemStack?
 ---@field entity Entity?
-
----@class FOXSkullAPI.Skull.Class: FOXSkullAPI.Skull
+---@field context FOXSkullAPI.Context
+---@field package [1] FOXSkullAPI.Skull.Private
 local class = {}
 
----@alias FOXSkullAPI.Functions.Skull fun(skull: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?)
----@alias FOXSkullAPI.Functions.Render fun(delta: number, ctx: Event.SkullRender.context, skull: FOXSkullAPI.Skull)
+---@class FOXSkullAPI.Skull.Private
+---@field models table<FOXSkullAPI.Context.Groups, ModelPart>
+---@field visible boolean
+---@field id string
+---@field uuid string
+---@field timestamp integer
+
+---@alias FOXSkullAPI.Functions.Skull fun(skull: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?, context: FOXSkullAPI.Context)
+---@alias FOXSkullAPI.Functions.Render fun(delta: number, ctx: FOXSkullAPI.Context, skull: FOXSkullAPI.Skull)
 ---@alias FOXSkullAPI.Functions.Tick fun(skull: FOXSkullAPI.Skull)
 ---@alias FOXSkullAPI.Functions.Other fun(skull: FOXSkullAPI.Skull)
 
---#ENDREGION -----------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Groups ♡˚
 ------------------------------------------------------------------------------------------------
 
----@alias FOXSkullAPI.Groups
+---@alias FOXSkullAPI.Context
+---| "FIRST_PERSON_LEFT_HAND" Skull held in the left hand, in first person
+---| "FIRST_PERSON_RIGHT_HAND" Skull held in the right hand, in first person
+---| "THIRD_PERSON_LEFT_HAND" Skull held in the left hand, in third person
+---| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
+---| "HEAD" Skull worn in the helmet slot
+---| "GUI" Skull inside an inventory or GUI
+---| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
+---| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
+---| "BLOCK" Skull placed as a block
+---| "OTHER" Fallback context
+
+---@alias FOXSkullAPI.Context.Groups
 ---| "HANDS" Skull held in either hand
 ---| "LEFT_HAND" Skull held in left hand
 ---| "RIGHT_HAND" Skull held in right hand
@@ -81,11 +100,11 @@ local class = {}
 ---| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
 ---| "ITEM" Any skull item
 ---| "CONTAINER" Skull inside an inventory or GUI **In Figura 0.1.5, this would also target skulls displayed on the floor and in an item frame**
----| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
+---| "HEAD" Skull worn in the helmet slot
+---| "GUI" Skull inside an inventory or GUI
 ---| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
----| "BLOCK" Any skull block
----| "FLOOR_BLOCK" Skull placed on the floor
----| "WALL_BLOCK" Skull placed on a wall
+---| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
+---| "BLOCK" Skull placed as a block
 ---| "ALL" Any skull
 ---| "OTHER" Fallback context
 
@@ -98,13 +117,12 @@ local context_groups = {
 	HANDS = { "LEFT_HAND", "RIGHT_HAND" },
 	CONTAINER = { "GUI", "OTHER" },
 	ITEM = { "HANDS", "HEAD", "FIXED", "GROUND", "CONTAINER" },
-	BLOCK = { "FLOOR_BLOCK", "WALL_BLOCK" },
 	ALL = { "ITEM", "BLOCK" },
 }
 
 ---Gives a table containing contexts in the given group
----@param v FOXSkullAPI.Groups
----@return FOXSkullAPI.Groups[]
+---@param v FOXSkullAPI.Context.Groups
+---@return FOXSkullAPI.Context.Groups[]
 local function ungroup(v)
 	local r = {}
 
@@ -193,7 +211,36 @@ local skull_event = {
 --#REGION ˚♡ FOXSkull > Models ♡˚
 ------------------------------------------------------------------------------------------------
 
+---Copies the tasks from the source model to the destination model
+---
+---This is a backport of a built-in 0.1.6 feature
+---@param s ModelPart
+---@param d ModelPart
+local function copy_tasks(s, d)
+	for _, task in pairs(s:getTask()) do
+		d:addTask(task)
+	end
+end
 
+---Copies a model and turns it into a skull model
+---@param m ModelPart?
+---@return ModelPart?
+local function copy_model(m)
+	if type(m) ~= "ModelPart" then return end
+
+	local hasTasks = next(m:getTask())
+
+	local copy = m:copy(m:getName())
+		:parentType("Skull")
+		:visible(false)
+		:moveTo(models)
+
+	if hasTasks and not next(copy:getTask()) then
+		copy_tasks(m, copy)
+	end
+
+	return copy
+end
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Accessor ♡˚
@@ -206,7 +253,7 @@ local skull_event = {
 ---| Vector3 A skull position
 
 ---Stores all skulls with id keys
----@type table<string, FOXSkullAPI.Skull.Class>
+---@type table<string, FOXSkullAPI.Skull>
 local all = {}
 ---Stores uuid, id pairs
 ---@type table<string, string>
@@ -267,28 +314,29 @@ local skull_meta = { __index = class, __type = "FOXSkull" }
 ---Calls the init event
 ---
 ---Returns nil if the key is of an invalid type
----@param key FOXSkullAPI.Skull.Keys
 ---@param block BlockState
 ---@param item ItemStack
 ---@param entity Entity
+---@param context FOXSkullAPI.Context
 ---@return FOXSkullAPI.Skull
-local function new(key, block, item, entity)
+local function new(block, item, entity, context)
 	local self = setmetatable({
 		block = block,
 		item = item,
 		entity = entity,
-		context = "OTHER",
+		context = context,
 	}, skull_meta)
 
+	local id = get_id(block or item)
 	local uuid = client.intUUIDToString(client.generateUUID())
 	self[1] = {
 		models = {},
 		visible = true,
+		id = id,
 		uuid = uuid,
 		timestamp = client.getSystemTime(),
 	}
 
-	local id = get_id(key)
 	uuids[uuid] = id
 	all[id] = self
 
@@ -313,15 +361,54 @@ local function remove(key)
 	self:remove()
 end
 
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Service ♡˚
-------------------------------------------------------------------------------------------------
-
-
+--#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Methods ♡˚
 ------------------------------------------------------------------------------------------------
+
+---Sets this skull's model
+---@param model ModelPart
+---@param group FOXSkullAPI.Context.Groups|string[]?
+function class:model(model, group)
+	group = type(group) == "string" and ungroup(group) or group --[[@as table]]
+
+	local m = self[1].models
+	for _, c in ipairs(group) do
+		if m[c] then
+			m[c]:remove()
+		end
+		m[c] = copy_model(model)
+	end
+end
+
+---Sets this skull's model
+---@param model ModelPart
+---@param group FOXSkullAPI.Context.Groups|string[]?
+function class:setModel(model, group)
+	group = type(group) == "string" and ungroup(group) or group --[[@as table]]
+
+	local m = self[1].models
+	for _, c in ipairs(group) do
+		if m[c] then
+			m[c]:remove()
+		end
+		m[c] = copy_model(model)
+	end
+end
+
+---Returns if this skull's current context is of a context group
+---@param group FOXSkullAPI.Context.Groups
+---@return boolean
+function class:of(group)
+	local c = self.context
+	for _, g in ipairs(ungroup(group)) do
+		if g == c then
+			return true
+		end
+	end
+	return false
+end
 
 ---Removes this skull
 ---
@@ -329,12 +416,22 @@ end
 function class:remove()
 	local priv = self[1]
 	uuids[priv.uuid] = nil
-	all[priv.key] = nil
+	all[priv.id] = nil
 
-	for _, model in pairs(priv.models) do
-		model:getParent():remove()
+	for _, m in pairs(priv.models) do
+		m:remove()
 	end
 end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Service ♡˚
+------------------------------------------------------------------------------------------------
+
+function events.skull_render(delta, block, item, entity, context)
+	local self = get(block or item) or new(block, item, entity, context --[[@as FOXSkullAPI.Context]])
+end
+
+--#ENDREGION
 
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkullAPI ♡˚
