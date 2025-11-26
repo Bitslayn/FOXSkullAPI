@@ -52,18 +52,18 @@ end
 --#REGION ˚♡ FOXSkull ♡˚
 --==============================================================================================================================
 
----@class FOXSkullAPI.Skulls.Any
+---@class FOXSkullAPI.Skull
+---@field block BlockState?
+---@field item ItemStack?
+---@field entity Entity?
 
----@class FOXSkullAPI.Skulls.Block: FOXSkullAPI.Skulls.Any
+---@class FOXSkullAPI.Skull.Class: FOXSkullAPI.Skull
+local class = {}
 
----@class FOXSkullAPI.Skulls.Item: FOXSkullAPI.Skulls.Any
-
----@alias FOXSkullAPI.Functions.Any fun(skull: FOXSkullAPI.Skulls.Any)
----@alias FOXSkullAPI.Functions.Block fun(skull: FOXSkullAPI.Skulls.Block, block: BlockState)
----@alias FOXSkullAPI.Functions.Item fun(skull: FOXSkullAPI.Skulls.Item, item: ItemStack)
----@alias FOXSkullAPI.Functions.Render fun(delta: number, skull: FOXSkullAPI.Skulls.Any, ctx: Event.SkullRender.context)
----@alias FOXSkullAPI.Functions.Tick fun(skull: FOXSkullAPI.Skulls.Any)
----@alias FOXSkullAPI.Functions.Other fun(skull: FOXSkullAPI.Skulls.Any)
+---@alias FOXSkullAPI.Functions.Skull fun(skull: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?)
+---@alias FOXSkullAPI.Functions.Render fun(delta: number, ctx: Event.SkullRender.context, skull: FOXSkullAPI.Skull)
+---@alias FOXSkullAPI.Functions.Tick fun(skull: FOXSkullAPI.Skull)
+---@alias FOXSkullAPI.Functions.Other fun(skull: FOXSkullAPI.Skull)
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Groups ♡˚
@@ -166,24 +166,15 @@ local event_meta = {
 
 ---@class FOXSkullAPI.Events
 local skull_event = {
-	---Called whenever any skull starts rendering. This is called alongside block_init or item_init.
-	---@type FOXSkullAPI.Functions.Any[]
+	---Called whenever any skull starts rendering.
+	---@type FOXSkullAPI.Functions.Skull[]
 	skull_init = setmetatable({}, event_meta),
-	---Called whenever skulls have started rendering blocks.
-	---@type FOXSkullAPI.Functions.Block[]
-	block_init = setmetatable({}, event_meta),
-	---Called whenever skulls have started rendering on an entity, or inside a container.
-	---@type FOXSkullAPI.Functions.Item[]
-	item_init = setmetatable({}, event_meta),
-	---Called whenever any skull stops rendering. This is called alongside block_deinit or item_deinit.
-	---@type FOXSkullAPI.Functions.Any[]
+	---Called whenever any skull stops rendering.
+	---@type FOXSkullAPI.Functions.Skull[]
 	skull_deinit = setmetatable({}, event_meta),
-	---Called whenever skulls have stopped rendering as blocks.
-	---@type FOXSkullAPI.Functions.Block[]
-	block_deinit = setmetatable({}, event_meta),
-	---Called whenever skulls have stopped rendering on an entity, or inside a container.
-	---@type FOXSkullAPI.Functions.Item[]
-	item_deinit = setmetatable({}, event_meta),
+	---Called on a skull that errors.
+	---@type FOXSkullAPI.Functions.Other[]
+	skull_error = setmetatable({}, event_meta),
 	---Called on each skull that renders regardless of its type, for each context it renders in, before updating its model and calling its render function.
 	---@type FOXSkullAPI.Functions.Render[]
 	pre_render = setmetatable({}, event_meta),
@@ -196,29 +187,169 @@ local skull_event = {
 	---Called on each skull that renders but only once per tick just like the skull_tick function. Ran after running the skull's tick function.
 	---@type FOXSkullAPI.Functions.Tick[]
 	post_tick = setmetatable({}, event_meta),
-	---Called on a skull that errors.
-	---@type FOXSkullAPI.Functions.Other[]
-	skull_error = setmetatable({}, event_meta),
 }
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Models ♡˚
+------------------------------------------------------------------------------------------------
+
+
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Accessor ♡˚
+------------------------------------------------------------------------------------------------
+
+---@alias FOXSkullAPI.Skull.Keys
+---| string A skull UUID
+---| BlockState A skull block
+---| ItemStack A skull item
+---| Vector3 A skull position
+
+---Stores all skulls with id keys
+---@type table<string, FOXSkullAPI.Skull.Class>
+local all = {}
+---Stores uuid, id pairs
+---@type table<string, string>
+local uuids = {}
+
+--#REGION Get
+
+---@type table<string, fun(key: FOXSkullAPI.Skull.Keys, entity: Entity?): string>
+local type_id = {
+	---@param key string
+	---@return string
+	string = function(key)
+		return uuids[key]
+	end,
+	---@param key BlockState
+	---@return string
+	BlockState = function(key)
+		return key:getPos():toString()
+	end,
+	---@param key ItemStack
+	---@return string
+	ItemStack = function(key)
+		return key:getCount() .. key:toStackString()
+	end,
+	---@param key Vector3
+	---@return string
+	Vector3 = function(key)
+		return key:toString()
+	end,
+}
+
+---Formats a supported key into an internalID
+---
+---Returns nil if the key is of an invalid type
+---@param key FOXSkullAPI.Skull.Keys
+---@return string?
+local function get_id(key)
+	local f = type_id[type(key)]
+	if f then return f(key) end
+end
+
+---Gets a skull that has been initialized
+---
+---Returns nil if a skull with the given key does not exist
+---@param key FOXSkullAPI.Skull.Keys
+---@return FOXSkullAPI.Skull?
+local function get(key)
+	return all[key] or all[get_id(key)]
+end
+
+--#ENDREGION
+--#REGION New
+
+local skull_meta = { __index = class, __type = "FOXSkull" }
+
+---Creates and returns a new skull with the given BlockState or ItemStack
+---
+---Calls the init event
+---
+---Returns nil if the key is of an invalid type
+---@param key FOXSkullAPI.Skull.Keys
+---@param block BlockState
+---@param item ItemStack
+---@param entity Entity
+---@return FOXSkullAPI.Skull
+local function new(key, block, item, entity)
+	local self = setmetatable({
+		block = block,
+		item = item,
+		entity = entity,
+		context = "OTHER",
+	}, skull_meta)
+
+	local uuid = client.intUUIDToString(client.generateUUID())
+	self[1] = {
+		models = {},
+		visible = true,
+		uuid = uuid,
+		timestamp = client.getSystemTime(),
+	}
+
+	local id = get_id(key)
+	uuids[uuid] = id
+	all[id] = self
+
+	skull_event.skull_init(self, item, block)
+
+	return self
+end
+
+--#ENDREGION
+--#REGION Remove
+
+---Removes a skull by its generic key
+---
+---Calls the deinit event
+---@param key FOXSkullAPI.Skull.Keys
+local function remove(key)
+	local self = all[key] or all[get_id(key)]
+	if not self then return end
+
+	skull_event.skull_deinit(self, self.item, self.block)
+
+	self:remove()
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Service ♡˚
+------------------------------------------------------------------------------------------------
+
+
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Methods ♡˚
+------------------------------------------------------------------------------------------------
+
+---Removes this skull
+---
+---This function does not call the skull_deinit event
+function class:remove()
+	local priv = self[1]
+	uuids[priv.uuid] = nil
+	all[priv.key] = nil
+
+	for _, model in pairs(priv.models) do
+		model:getParent():remove()
+	end
+end
 
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkullAPI ♡˚
 --==============================================================================================================================
 
 ---@class FOXSkullAPI.Index
----@field protected [string] FOXSkullAPI.Skulls.Any?
----@field protected [BlockState] FOXSkullAPI.Skulls.Block?
----@field protected [ItemStack] FOXSkullAPI.Skulls.Item?
----@field protected [Vector3] FOXSkullAPI.Skulls.Block?
+---@field protected [string] FOXSkullAPI.Skull?
+---@field protected [BlockState] FOXSkullAPI.Skull?
+---@field protected [ItemStack] FOXSkullAPI.Skull?
+---@field protected [Vector3] FOXSkullAPI.Skull?
 
 ---TODO Add quick start guide and link to wiki here
 ---@class FOXSkullAPI: FOXSkullAPI.Index
----@field block_init FOXSkullAPI.Functions.Block
----@field item_init FOXSkullAPI.Functions.Item
----@field skull_init FOXSkullAPI.Functions.Any
----@field block_deinit FOXSkullAPI.Functions.Block
----@field item_deinit FOXSkullAPI.Functions.Item
----@field skull_deinit FOXSkullAPI.Functions.Any
+---@field skull_init FOXSkullAPI.Functions.Skull
+---@field skull_deinit FOXSkullAPI.Functions.Skull
 ---@field pre_render FOXSkullAPI.Functions.Render
 ---@field post_render FOXSkullAPI.Functions.Render
 ---@field pre_tick FOXSkullAPI.Functions.Tick
@@ -239,10 +370,6 @@ local skulls = setmetatable({}, {
 		table.insert(s[k], v)
 	end,
 })
-
-function events.skull_render(delta, block, item, entity, ctx)
-	host:actionbar(ctx)
-end
 
 rawset(skulls, 1, skull_event)
 
