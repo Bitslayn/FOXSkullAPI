@@ -120,10 +120,15 @@ local context_groups = {
 	ALL = { "ITEM", "BLOCK" },
 }
 
+---@type table<FOXSkullAPI.Context.Groups, true>[]
+local group_cache = {}
+
 ---Gives a table containing contexts in the given group
 ---@param v FOXSkullAPI.Context.Groups
 ---@return table<FOXSkullAPI.Context.Groups, true>
 local function ungroup(v)
+	if group_cache[v] then return group_cache[v] end
+
 	local r = {}
 
 	---Add keys to table, deep ungrouping where necessary
@@ -142,7 +147,8 @@ local function ungroup(v)
 	-- Initialize ungrouping
 
 	p(string.upper(v))
-
+	
+	group_cache[v] = r
 	return r
 end
 
