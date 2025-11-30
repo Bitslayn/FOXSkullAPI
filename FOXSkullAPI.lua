@@ -313,7 +313,7 @@ end
 ---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
 ---@return boolean
 ---@nodiscard
-function class:of(context)
+function class:hasContext(context)
 	return ungroup(context)[self.context] or false
 end
 
