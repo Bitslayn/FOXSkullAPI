@@ -285,6 +285,8 @@ local function set_model(s, m, g)
 		end
 		p[c] = copy_model(m)
 	end
+
+	return s
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -294,6 +296,7 @@ end
 ---Sets this skull's model
 ---@param model ModelPart
 ---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
+---@return self
 function class:model(model, context)
 	return set_model(self, model, context or "OTHER")
 end
@@ -301,6 +304,7 @@ end
 ---Sets this skull's model
 ---@param model ModelPart
 ---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
+---@return self
 function class:setModel(model, context)
 	return set_model(self, model, context or "OTHER")
 end
@@ -308,6 +312,7 @@ end
 ---Returns if this skull's current context is of a context group
 ---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
 ---@return boolean
+---@nodiscard
 function class:of(context)
 	return ungroup(context)[self.context] or false
 end
@@ -437,12 +442,10 @@ end
 --#REGION ˚♡ FOXSkull > Service ♡˚
 ------------------------------------------------------------------------------------------------
 
--- function events.skull_render(delta, block, item, entity, context)
--- 	local self = get(block or item) or new(block, item, entity, context --[[@as FOXSkullAPI.Context]])
--- 	return true
--- end
-
--- models.Models.roof:copy("roof"):moveTo(models):parentType("Skull")
+function events.skull_render(delta, block, item, entity, context)
+	local self = get(block or item) or new(block, item, entity, context --[[@as FOXSkullAPI.Context]])
+	
+end
 
 --#ENDREGION
 
