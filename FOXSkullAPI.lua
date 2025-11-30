@@ -57,20 +57,22 @@ end
 ---@field item ItemStack?
 ---@field entity Entity?
 ---@field context FOXSkullAPI.Context
+---@field render FOXSkullAPI.Functions.Render
+---@field tick FOXSkullAPI.Functions.Tick
 ---@field package [1] FOXSkullAPI.Skull.Private
 local class = {}
 
 ---@class FOXSkullAPI.Skull.Private
 ---@field models table<FOXSkullAPI.Context.Groups, ModelPart>
----@field visible boolean
+---@field hidden boolean
 ---@field id string
 ---@field uuid string
 ---@field timestamp integer
 
----@alias FOXSkullAPI.Functions.Skull fun(skull: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?, context: FOXSkullAPI.Context)
----@alias FOXSkullAPI.Functions.Render fun(delta: number, ctx: FOXSkullAPI.Context, skull: FOXSkullAPI.Skull)
----@alias FOXSkullAPI.Functions.Tick fun(skull: FOXSkullAPI.Skull)
----@alias FOXSkullAPI.Functions.Other fun(skull: FOXSkullAPI.Skull)
+---@alias FOXSkullAPI.Functions.Skull fun(self: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?, context: FOXSkullAPI.Context)
+---@alias FOXSkullAPI.Functions.Render fun(delta: number, self: FOXSkullAPI.Skull, context: FOXSkullAPI.Context)
+---@alias FOXSkullAPI.Functions.Tick fun(self: FOXSkullAPI.Skull)
+---@alias FOXSkullAPI.Functions.Other fun(self: FOXSkullAPI.Skull)
 
 
 
@@ -406,7 +408,7 @@ local function new(block, item, entity, context)
 	local uuid = client.intUUIDToString(client.generateUUID())
 	self[1] = {
 		models = {},
-		visible = true,
+		hidden = false,
 		id = id,
 		uuid = uuid,
 		timestamp = client.getSystemTime(),
@@ -442,9 +444,31 @@ end
 --#REGION ˚♡ FOXSkull > Service ♡˚
 ------------------------------------------------------------------------------------------------
 
+---@type ModelPart?
+local curr_model
+local visible = figuraMetatables.ModelPart.__index(models, "visible")
+
 function events.skull_render(delta, block, item, entity, context)
-	local self = get(block or item) or new(block, item, entity, context --[[@as FOXSkullAPI.Context]])
-	
+	local self = get(block or item) or new(block, item, entity, context)
+	local priv = self[1]
+
+	priv.timestamp = client.getSystemTime()
+	self.context = context
+
+	skull_event.pre_render(delta, self, context)
+	if self.render then
+		self.render(delta, self, context)
+	end
+
+	if curr_model then
+		visible(curr_model, false)
+	end
+	curr_model = priv.models[context] or priv.models.OTHER
+	if curr_model then
+		visible(curr_model, true)
+	end
+
+	return priv.hidden
 end
 
 --#ENDREGION
