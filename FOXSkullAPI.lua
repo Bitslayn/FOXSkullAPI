@@ -122,10 +122,11 @@ local context_groups = {
 
 ---Gives a table containing contexts in the given group
 ---@param v FOXSkullAPI.Context.Groups
----@return FOXSkullAPI.Context.Groups[]
+---@return table<FOXSkullAPI.Context.Groups, true>
 local function ungroup(v)
 	local r = {}
 
+	---Add keys to table, deep ungrouping where necessary
 	---@param g string
 	local function p(g)
 		local t = context_groups[g]
@@ -134,9 +135,11 @@ local function ungroup(v)
 				p(h)
 			end
 		else
-			table.insert(r, g)
+			r[g] = true
 		end
 	end
+
+	-- Initialize ungrouping
 
 	p(string.upper(v))
 
@@ -228,18 +231,18 @@ end
 local function copy_model(m)
 	if type(m) ~= "ModelPart" then return end
 
-	local hasTasks = next(m:getTask())
+	local t = next(m:getTask())
 
-	local copy = m:copy(m:getName())
+	local c = m:copy(m:getName())
 		:parentType("Skull")
 		:visible(false)
 		:moveTo(models)
 
-	if hasTasks and not next(copy:getTask()) then
-		copy_tasks(m, copy)
+	if t and not next(c:getTask()) then
+		copy_tasks(m, c)
 	end
 
-	return copy
+	return c
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -401,13 +404,7 @@ end
 ---@param group FOXSkullAPI.Context.Groups
 ---@return boolean
 function class:of(group)
-	local c = self.context
-	for _, g in ipairs(ungroup(group)) do
-		if g == c then
-			return true
-		end
-	end
-	return false
+	return ungroup(group)[self.context]
 end
 
 ---Removes this skull
@@ -427,9 +424,12 @@ end
 --#REGION ˚♡ FOXSkull > Service ♡˚
 ------------------------------------------------------------------------------------------------
 
-function events.skull_render(delta, block, item, entity, context)
-	local self = get(block or item) or new(block, item, entity, context --[[@as FOXSkullAPI.Context]])
-end
+-- function events.skull_render(delta, block, item, entity, context)
+-- 	local self = get(block or item) or new(block, item, entity, context --[[@as FOXSkullAPI.Context]])
+-- 	return true
+-- end
+
+-- models.Models.roof:copy("roof"):moveTo(models):parentType("Skull")
 
 --#ENDREGION
 
