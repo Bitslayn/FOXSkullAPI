@@ -145,12 +145,9 @@ local skull_event = {
 	---Called on each skull that renders regardless of its type, for each context it renders in, after updating its model and calling its render function.
 	---@type FOXSkullAPI.Functions.Render[]
 	post_render = setmetatable({}, event_meta),
-	---Called on each skull that renders but only once per tick just like the skull_tick function. Ran before running the skull's tick function.
+	---Called on each skull that renders but only once per tick just like the skull_tick function.
 	---@type FOXSkullAPI.Functions.Tick[]
-	pre_tick = setmetatable({}, event_meta),
-	---Called on each skull that renders but only once per tick just like the skull_tick function. Ran after running the skull's tick function.
-	---@type FOXSkullAPI.Functions.Tick[]
-	post_tick = setmetatable({}, event_meta),
+	tick = setmetatable({}, event_meta),
 }
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -319,6 +316,22 @@ function class:hasContext(context)
 	return ungroup(context)[self.context] or false
 end
 
+---Sets the function to run on this skull every frame
+---@param func FOXSkullAPI.Functions.Render
+---@return self
+function class:setRender(func)
+	self.render = func
+	return self
+end
+
+---Sets the function to run on this skull every tick
+---@param func FOXSkullAPI.Functions.Tick
+---@return self
+function class:setTick(func)
+	self.tick = func
+	return self
+end
+
 ---Removes this skull
 ---
 ---This function does not call the skull_deinit event
@@ -468,7 +481,24 @@ function events.skull_render(delta, block, item, entity, context)
 		visible(curr_model, true)
 	end
 
+	skull_event.post_render(delta, self, context)
+
 	return priv.hidden
+end
+
+local function tick()
+	for _, self in pairs(all) do
+		skull_event.tick(self)
+		if self.tick then
+			self.tick(self)
+		end
+	end
+end
+
+events.tick = tick
+function events.world_tick()
+	if player:isLoaded() then return end
+	tick()
 end
 
 --#ENDREGION
@@ -487,11 +517,10 @@ end
 ---@class FOXSkullAPI: FOXSkullAPI.Index
 ---@field skull_init FOXSkullAPI.Functions.Skull
 ---@field skull_deinit FOXSkullAPI.Functions.Skull
+---@field skull_error FOXSkullAPI.Functions.Other
 ---@field pre_render FOXSkullAPI.Functions.Render
 ---@field post_render FOXSkullAPI.Functions.Render
----@field pre_tick FOXSkullAPI.Functions.Tick
----@field post_tick FOXSkullAPI.Functions.Tick
----@field skull_error FOXSkullAPI.Functions.Other
+---@field tick FOXSkullAPI.Functions.Tick
 ---@field protected [1] FOXSkullAPI.Events
 local skulls = setmetatable({}, {
 	__index = function(s, k)
