@@ -72,87 +72,22 @@ local class = {}
 ---@alias FOXSkullAPI.Functions.Tick fun(skull: FOXSkullAPI.Skull)
 ---@alias FOXSkullAPI.Functions.Other fun(skull: FOXSkullAPI.Skull)
 
+
+
+---@alias FOXSkullAPI.Skull.Keys
+---| string A skull UUID
+---| BlockState A skull block
+---| ItemStack A skull item
+---| Vector3 A skull position
+
+---Stores all skulls with id keys
+---@type table<string, FOXSkullAPI.Skull>
+local all = {}
+---Stores uuid, id pairs
+---@type table<string, string>
+local uuids = {}
+
 ------------------------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Groups ♡˚
-------------------------------------------------------------------------------------------------
-
----@alias FOXSkullAPI.Context
----| "FIRST_PERSON_LEFT_HAND" Skull held in the left hand, in first person
----| "FIRST_PERSON_RIGHT_HAND" Skull held in the right hand, in first person
----| "THIRD_PERSON_LEFT_HAND" Skull held in the left hand, in third person
----| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
----| "HEAD" Skull worn in the helmet slot
----| "GUI" Skull inside an inventory or GUI
----| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
----| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
----| "BLOCK" Skull placed as a block
----| "OTHER" Fallback context
-
----@alias FOXSkullAPI.Context.Groups
----| "HANDS" Skull held in either hand
----| "LEFT_HAND" Skull held in left hand
----| "RIGHT_HAND" Skull held in right hand
----| "FIRST_PERSON" Skull held in either hand, in first person
----| "THIRD_PERSON" Skull held in either hand, in third person
----| "FIRST_PERSON_LEFT_HAND" Skull held in the left hand, in first person
----| "FIRST_PERSON_RIGHT_HAND" Skull held in the right hand, in first person
----| "THIRD_PERSON_LEFT_HAND" Skull held in the left hand, in third person
----| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
----| "ITEM" Any skull item
----| "CONTAINER" Skull inside an inventory or GUI **In Figura 0.1.5, this would also target skulls displayed on the floor and in an item frame**
----| "HEAD" Skull worn in the helmet slot
----| "GUI" Skull inside an inventory or GUI
----| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
----| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
----| "BLOCK" Skull placed as a block
----| "ALL" Any skull
----| "OTHER" Fallback context
-
----@type table<string, string[]>
-local context_groups = {
-	LEFT_HAND = { "FIRST_PERSON_LEFT_HAND", "THIRD_PERSON_LEFT_HAND" },
-	RIGHT_HAND = { "FIRST_PERSON_RIGHT_HAND", "THIRD_PERSON_RIGHT_HAND" },
-	FIRST_PERSON = { "FIRST_PERSON_LEFT_HAND", "FIRST_PERSON_RIGHT_HAND" },
-	THIRD_PERSON = { "THIRD_PERSON_LEFT_HAND", "THIRD_PERSON_RIGHT_HAND" },
-	HANDS = { "LEFT_HAND", "RIGHT_HAND" },
-	CONTAINER = { "GUI", "OTHER" },
-	ITEM = { "HANDS", "HEAD", "FIXED", "GROUND", "CONTAINER" },
-	ALL = { "ITEM", "BLOCK" },
-}
-
----@type table<FOXSkullAPI.Context.Groups, true>[]
-local group_cache = {}
-
----Gives a table containing contexts in the given group
----@param v FOXSkullAPI.Context.Groups
----@return table<FOXSkullAPI.Context.Groups, true>
-local function ungroup(v)
-	if group_cache[v] then return group_cache[v] end
-
-	local r = {}
-
-	---Add keys to table, deep ungrouping where necessary
-	---@param g string
-	local function p(g)
-		local t = context_groups[g]
-		if t then
-			for _, h in ipairs(t) do
-				p(h)
-			end
-		else
-			r[g] = true
-		end
-	end
-
-	-- Initialize ungrouping
-
-	p(string.upper(v))
-	
-	group_cache[v] = r
-	return r
-end
-
---#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Events ♡˚
 ------------------------------------------------------------------------------------------------
 
@@ -217,6 +152,92 @@ local skull_event = {
 }
 
 --#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Groups ♡˚
+------------------------------------------------------------------------------------------------
+
+---@alias FOXSkullAPI.Context
+---| "FIRST_PERSON_LEFT_HAND" Skull held in the left hand, in first person
+---| "FIRST_PERSON_RIGHT_HAND" Skull held in the right hand, in first person
+---| "THIRD_PERSON_LEFT_HAND" Skull held in the left hand, in third person
+---| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
+---| "HEAD" Skull worn in the helmet slot
+---| "GUI" Skull inside an inventory or GUI
+---| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
+---| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
+---| "BLOCK" Skull placed as a block
+---| "OTHER" Fallback context
+
+---@alias FOXSkullAPI.Context.Groups
+---| "HANDS" Skull held in either hand
+---| "LEFT_HAND" Skull held in left hand
+---| "RIGHT_HAND" Skull held in right hand
+---| "FIRST_PERSON" Skull held in either hand, in first person
+---| "THIRD_PERSON" Skull held in either hand, in third person
+---| "FIRST_PERSON_LEFT_HAND" Skull held in the left hand, in first person
+---| "FIRST_PERSON_RIGHT_HAND" Skull held in the right hand, in first person
+---| "THIRD_PERSON_LEFT_HAND" Skull held in the left hand, in third person
+---| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
+---| "ITEM" Any skull item
+---| "CONTAINER" Skull inside an inventory or GUI **In Figura 0.1.5, this would also target skulls displayed on the floor and in an item frame**
+---| "HEAD" Skull worn in the helmet slot
+---| "GUI" Skull inside an inventory or GUI
+---| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
+---| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
+---| "BLOCK" Skull placed as a block
+---| "ALL" Any skull
+---| "OTHER" Fallback context
+
+---@type table<string, string[]>
+local context_groups = {
+	LEFT_HAND = { "FIRST_PERSON_LEFT_HAND", "THIRD_PERSON_LEFT_HAND" },
+	RIGHT_HAND = { "FIRST_PERSON_RIGHT_HAND", "THIRD_PERSON_RIGHT_HAND" },
+	FIRST_PERSON = { "FIRST_PERSON_LEFT_HAND", "FIRST_PERSON_RIGHT_HAND" },
+	THIRD_PERSON = { "THIRD_PERSON_LEFT_HAND", "THIRD_PERSON_RIGHT_HAND" },
+	HANDS = { "LEFT_HAND", "RIGHT_HAND" },
+	CONTAINER = { "GUI", "OTHER" },
+	ITEM = { "HANDS", "HEAD", "FIXED", "GROUND", "CONTAINER" },
+	ALL = { "ITEM", "BLOCK" },
+}
+
+---@type table<FOXSkullAPI.Context.Groups, true>[]
+local group_cache = {}
+
+---Gives a table containing contexts in the given group
+---@param v FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]
+---@return table<FOXSkullAPI.Context.Groups, true>
+local function ungroup(v)
+	if group_cache[v] then return group_cache[v] end
+
+	local r = {}
+
+	---Add keys to table, deep ungrouping where necessary
+	---@param g string
+	local function p(g)
+		local t = context_groups[g]
+		if t then
+			for _, h in ipairs(t) do
+				p(h)
+			end
+		else
+			r[g] = true
+		end
+	end
+
+	-- Initialize ungrouping
+
+	if type(v) == "string" then
+		p(string.upper(v))
+		group_cache[v] = r
+	else
+		for _, h in ipairs(v) do
+			p(h)
+		end
+	end
+
+	return r
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Models ♡˚
 ------------------------------------------------------------------------------------------------
 
@@ -251,22 +272,62 @@ local function copy_model(m)
 	return c
 end
 
+---Sets the model of a skull
+---@param s FOXSkullAPI.Skull
+---@param m ModelPart
+---@param g FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]
+local function set_model(s, m, g)
+	local p = s[1].models
+
+	for c in pairs(ungroup(g)) do
+		if p[c] then
+			p[c]:remove()
+		end
+		p[c] = copy_model(m)
+	end
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Methods ♡˚
+------------------------------------------------------------------------------------------------
+
+---Sets this skull's model
+---@param model ModelPart
+---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
+function class:model(model, context)
+	return set_model(self, model, context or "OTHER")
+end
+
+---Sets this skull's model
+---@param model ModelPart
+---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
+function class:setModel(model, context)
+	return set_model(self, model, context or "OTHER")
+end
+
+---Returns if this skull's current context is of a context group
+---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
+---@return boolean
+function class:of(context)
+	return ungroup(context)[self.context] or false
+end
+
+---Removes this skull
+---
+---This function does not call the skull_deinit event
+function class:remove()
+	local priv = self[1]
+	uuids[priv.uuid] = nil
+	all[priv.id] = nil
+
+	for _, m in pairs(priv.models) do
+		m:remove()
+	end
+end
+
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Accessor ♡˚
 ------------------------------------------------------------------------------------------------
-
----@alias FOXSkullAPI.Skull.Keys
----| string A skull UUID
----| BlockState A skull block
----| ItemStack A skull item
----| Vector3 A skull position
-
----Stores all skulls with id keys
----@type table<string, FOXSkullAPI.Skull>
-local all = {}
----Stores uuid, id pairs
----@type table<string, string>
-local uuids = {}
 
 --#REGION Get
 
@@ -371,60 +432,6 @@ local function remove(key)
 end
 
 --#ENDREGION
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Methods ♡˚
-------------------------------------------------------------------------------------------------
-
----Sets this skull's model
----@param model ModelPart
----@param group FOXSkullAPI.Context.Groups|string[]?
-function class:model(model, group)
-	group = type(group) == "string" and ungroup(group) or group --[[@as table]]
-
-	local m = self[1].models
-	for _, c in ipairs(group) do
-		if m[c] then
-			m[c]:remove()
-		end
-		m[c] = copy_model(model)
-	end
-end
-
----Sets this skull's model
----@param model ModelPart
----@param group FOXSkullAPI.Context.Groups|string[]?
-function class:setModel(model, group)
-	group = type(group) == "string" and ungroup(group) or group --[[@as table]]
-
-	local m = self[1].models
-	for _, c in ipairs(group) do
-		if m[c] then
-			m[c]:remove()
-		end
-		m[c] = copy_model(model)
-	end
-end
-
----Returns if this skull's current context is of a context group
----@param group FOXSkullAPI.Context.Groups
----@return boolean
-function class:of(group)
-	return ungroup(group)[self.context]
-end
-
----Removes this skull
----
----This function does not call the skull_deinit event
-function class:remove()
-	local priv = self[1]
-	uuids[priv.uuid] = nil
-	all[priv.id] = nil
-
-	for _, m in pairs(priv.models) do
-		m:remove()
-	end
-end
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Service ♡˚
