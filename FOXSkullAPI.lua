@@ -10,6 +10,28 @@ Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 ]]
 
 --==============================================================================================================================
+--#REGION ˚♡ Config ♡˚
+--==============================================================================================================================
+
+---@class FOXSkullAPI.Config
+---@field log_errors boolean Enable logging all skull errors to chat.
+---@field host_only_logging boolean Allows logging errors only to host. Does nothing with log_errors = false.
+---@field username string Set this to your IGN to avoid erroring while you're offline. Sets the skin to use for unmodeled or errored skulls.
+---@field load_addons boolean Enables loading add-ons automatically.
+local config = {
+	-- Enable logging all skull errors to chat.
+	log_errors = true,
+	-- Allows logging errors only to host. Does nothing with log_errors = false.
+	host_only_logging = true,
+
+	-- Set this to your IGN to avoid erroring while you're offline. Sets the skin to use for unmodeled or errored skulls.
+	username = "Steve",
+
+	-- Enables loading add-ons automatically.
+	load_addons = true,
+}
+
+--#ENDREGION --=================================================================================================================
 --#REGION ˚♡ Utilities ♡˚
 --==============================================================================================================================
 
@@ -68,7 +90,7 @@ local class = {}
 ---@field id string
 ---@field uuid string
 ---@field timestamp integer
----@field error string?
+---@field error string|true?
 
 ---@alias FOXSkullAPI.Functions.Skull fun(self: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?, context: Event.SkullRender.context)
 ---@alias FOXSkullAPI.Functions.Render fun(self: FOXSkullAPI.Skull, delta: number, context: Event.SkullRender.context)
@@ -100,9 +122,19 @@ local uuids = {}
 ---@param ... any
 ---@return boolean, unknown
 local function try(s, f, ...)
+	---@type boolean, string
 	local succ, res = pcall(f, ...)
 	if not succ then
-		s[1].error = res
+		res = res and "§c"
+			.. res:match("^(.-)event_meta")
+			:gsub("'f%d+'", "<?>")
+			:gsub("%s%s", "\n  ")
+			.. "[FOXSkullAPI]: in ?"
+
+		s[1].error = res or true
+		if config.log_errors and (not config.host_only_logging and true or host:isHost()) then
+			print(res)
+		end
 	end
 	return succ, res
 end
@@ -250,6 +282,16 @@ end
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Models ♡˚
 ------------------------------------------------------------------------------------------------
+
+local default = models:newPart("default", "Skull")
+	:visible(false)
+default:newItem("item")
+	:item(string.format("minecraft:player_head{SkullOwner:%s}",
+		config.username ~= "Steve" and config.username or avatar:getEntityName()
+	))
+	:pos(0, 8, 0)
+default:newSprite("sprite")
+	:texture(textures:newTexture("", 1, 1))
 
 ---Copies the tasks from the source model to the destination model
 ---
@@ -519,12 +561,14 @@ function events.skull_render(delta, block, item, entity, context)
 	priv.timestamp = client.getSystemTime()
 	self.context = context
 
+	swap_model(not priv.error and (priv.models[context] or priv.models.OTHER) or default)
 	skull_event.skull_render(delta, self, context)
+
+	if priv.error then return end
+
 	if self.render then
 		self.render(self, delta, context)
 	end
-
-	swap_model(priv.models[context] or priv.models.OTHER)
 
 	return priv.hidden
 end
@@ -535,7 +579,7 @@ end
 local function tick()
 	for _, self in pairs(all) do
 		skull_event.skull_tick(self)
-		if self.tick then
+		if self.tick and not self[1].error then
 			self.tick(self)
 		end
 	end
@@ -618,8 +662,9 @@ end
 ---@field skull_error FOXSkullAPI.Functions.Other
 ---@field skull_render FOXSkullAPI.Functions.Render
 ---@field skull_tick FOXSkullAPI.Functions.Tick
+---@field config FOXSkullAPI.Config
 ---@field protected [1] FOXSkullAPI.Events
-local skulls = setmetatable({}, {
+local skulls = setmetatable({ config = config }, {
 	__index = function(s, k)
 		return s[1][k]
 	end,
