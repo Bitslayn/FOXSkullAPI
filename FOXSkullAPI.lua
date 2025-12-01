@@ -57,20 +57,21 @@ end
 ---@field item ItemStack?
 ---@field entity Entity?
 ---@field context Event.SkullRender.context
----@field render FOXSkullAPI.Functions.Render
----@field tick FOXSkullAPI.Functions.Tick
+---@field render FOXSkullAPI.Functions.Render?
+---@field tick FOXSkullAPI.Functions.Tick?
 ---@field package [1] FOXSkullAPI.Skull.Private
 local class = {}
 
 ---@class FOXSkullAPI.Skull.Private
 ---@field models table<FOXSkullAPI.Context.Groups, ModelPart>
----@field hidden boolean
+---@field hidden boolean?
 ---@field id string
 ---@field uuid string
 ---@field timestamp integer
+---@field error string?
 
 ---@alias FOXSkullAPI.Functions.Skull fun(self: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?, context: Event.SkullRender.context)
----@alias FOXSkullAPI.Functions.Render fun(delta: number, self: FOXSkullAPI.Skull, context: Event.SkullRender.context)
+---@alias FOXSkullAPI.Functions.Render fun(self: FOXSkullAPI.Skull, delta: number, context: Event.SkullRender.context)
 ---@alias FOXSkullAPI.Functions.Tick fun(self: FOXSkullAPI.Skull)
 ---@alias FOXSkullAPI.Functions.Other fun(self: FOXSkullAPI.Skull)
 
@@ -91,10 +92,25 @@ local uuids = {}
 --#REGION ˚♡ FOXSkull > Events ♡˚
 ------------------------------------------------------------------------------------------------
 
+---Catches an error and errors the skull
+---
+---Returns the pcall result
+---@param s FOXSkullAPI.Skull
+---@param f function
+---@param ... any
+---@return boolean, unknown
+local function try(s, f, ...)
+	local succ, res = pcall(f, ...)
+	if not succ then
+		s[1].error = res
+	end
+	return succ, res
+end
+
 ---Optimizes and allows for calling events
 local event_meta = {
 	__call = function(s, ...)
-		return s.c and s.c(...)
+		return s.c and try(..., s.c, ...)
 	end,
 	__newindex = function(s, k, v)
 		rawset(s, k, v)
@@ -505,7 +521,7 @@ function events.skull_render(delta, block, item, entity, context)
 
 	skull_event.skull_render(delta, self, context)
 	if self.render then
-		self.render(delta, self, context)
+		self.render(self, delta, context)
 	end
 
 	swap_model(priv.models[context] or priv.models.OTHER)

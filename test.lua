@@ -7,7 +7,7 @@ local default = models.Models.Player.Root.Neck.Head
 default:pos(-default:getPivot())
 
 function skulls.skull_init(skull)
-	skull:model():visible()
+	skull:model(default)
 end
 
 -- function skulls.skull_init(skull)
