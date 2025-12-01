@@ -317,6 +317,35 @@ function class:setModel(model, context)
 	return set_model(self, model, context or "OTHER")
 end
 
+---Returns this skull's model
+---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
+---@return ModelPart?
+function class:getModel(context)
+	return context and self[1].models[next(ungroup(context))] or self[1].models.OTHER
+end
+
+---Sets this skull's visibility state
+---@param state any
+---@return self
+function class:visible(state)
+	self[1].hidden = not state
+	return self
+end
+
+---Sets this skull's visibility state
+---@param state any
+---@return self
+function class:setVisible(state)
+	self[1].hidden = not state
+	return self
+end
+
+---Returns this skull's visibility state
+---@return boolean
+function class:getVisible()
+	return not self[1].hidden
+end
+
 ---Returns if this skull's current context is of a context group
 ---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
 ---@return boolean
