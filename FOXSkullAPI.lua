@@ -247,11 +247,9 @@ local function copy_tasks(s, d)
 end
 
 ---Copies a model and turns it into a skull model
----@param m ModelPart?
----@return ModelPart?
+---@param m ModelPart
+---@return ModelPart
 local function copy_model(m)
-	if type(m) ~= "ModelPart" then return end
-
 	local t = next(m:getTask())
 
 	local c = m:copy(m:getName())
@@ -268,7 +266,7 @@ end
 
 ---Sets the model of a skull
 ---@param s FOXSkullAPI.Skull
----@param m ModelPart
+---@param m ModelPart?
 ---@param g FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]
 local function set_model(s, m, g)
 	local p = s[1].models
@@ -277,7 +275,7 @@ local function set_model(s, m, g)
 		if p[c] then
 			p[c]:remove()
 		end
-		p[c] = copy_model(m)
+		p[c] = m and copy_model(m)
 	end
 
 	return s
@@ -325,18 +323,22 @@ function class:getModel(context)
 end
 
 ---Sets this skull's visibility state
+---
+---If state is nil, defaults to true
 ---@param state any
 ---@return self
 function class:visible(state)
-	self[1].hidden = not state
+	self[1].hidden = state ~= nil and not state
 	return self
 end
 
 ---Sets this skull's visibility state
+---
+---If state is nil, defaults to true
 ---@param state any
 ---@return self
 function class:setVisible(state)
-	self[1].hidden = not state
+	self[1].hidden = state ~= nil and not state
 	return self
 end
 
