@@ -520,8 +520,9 @@ local function flushRender()
 		if world.isChunkLoaded(pos) and world.getBlockState(pos) == block then return end
 	end
 
-	remove(flush_key)
-	flush_key = nil
+	local old = flush_key
+	flush_key = next(all, flush_key)
+	remove(old)
 end
 
 function events.render()
