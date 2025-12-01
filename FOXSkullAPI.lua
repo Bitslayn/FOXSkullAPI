@@ -300,7 +300,7 @@ end
 ------------------------------------------------------------------------------------------------
 
 ---Sets this skull's model
----@param model ModelPart
+---@param model ModelPart?
 ---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
 ---@return self
 function class:model(model, context)
@@ -308,7 +308,7 @@ function class:model(model, context)
 end
 
 ---Sets this skull's model
----@param model ModelPart
+---@param model ModelPart?
 ---@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
 ---@return self
 function class:setModel(model, context)
@@ -325,7 +325,7 @@ end
 ---Sets this skull's visibility state
 ---
 ---If state is nil, defaults to true
----@param state any
+---@param state boolean?
 ---@return self
 function class:visible(state)
 	self[1].hidden = state ~= nil and not state
@@ -335,7 +335,7 @@ end
 ---Sets this skull's visibility state
 ---
 ---If state is nil, defaults to true
----@param state any
+---@param state boolean?
 ---@return self
 function class:setVisible(state)
 	self[1].hidden = state ~= nil and not state
