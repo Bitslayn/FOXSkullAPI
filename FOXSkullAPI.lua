@@ -56,7 +56,7 @@ end
 ---@field block BlockState?
 ---@field item ItemStack?
 ---@field entity Entity?
----@field context FOXSkullAPI.Context
+---@field context Event.SkullRender.context
 ---@field render FOXSkullAPI.Functions.Render
 ---@field tick FOXSkullAPI.Functions.Tick
 ---@field package [1] FOXSkullAPI.Skull.Private
@@ -69,12 +69,10 @@ local class = {}
 ---@field uuid string
 ---@field timestamp integer
 
----@alias FOXSkullAPI.Functions.Skull fun(self: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?, context: FOXSkullAPI.Context)
----@alias FOXSkullAPI.Functions.Render fun(delta: number, self: FOXSkullAPI.Skull, context: FOXSkullAPI.Context)
+---@alias FOXSkullAPI.Functions.Skull fun(self: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?, context: Event.SkullRender.context)
+---@alias FOXSkullAPI.Functions.Render fun(delta: number, self: FOXSkullAPI.Skull, context: Event.SkullRender.context)
 ---@alias FOXSkullAPI.Functions.Tick fun(self: FOXSkullAPI.Skull)
 ---@alias FOXSkullAPI.Functions.Other fun(self: FOXSkullAPI.Skull)
-
-
 
 ---@alias FOXSkullAPI.Skull.Keys
 ---| string A skull UUID
@@ -139,15 +137,12 @@ local skull_event = {
 	---Called on a skull that errors.
 	---@type FOXSkullAPI.Functions.Other[]
 	skull_error = setmetatable({}, event_meta),
-	---Called on each skull that renders regardless of its type, for each context it renders in, before updating its model and calling its render function.
+	---Called on each skull that renders regardless of its type, for each context it renders in.
 	---@type FOXSkullAPI.Functions.Render[]
-	pre_render = setmetatable({}, event_meta),
-	---Called on each skull that renders regardless of its type, for each context it renders in, after updating its model and calling its render function.
-	---@type FOXSkullAPI.Functions.Render[]
-	post_render = setmetatable({}, event_meta),
+	skull_render = setmetatable({}, event_meta),
 	---Called on each skull that renders but only once per tick just like the skull_tick function.
 	---@type FOXSkullAPI.Functions.Tick[]
-	tick = setmetatable({}, event_meta),
+	skull_tick = setmetatable({}, event_meta),
 }
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -237,66 +232,6 @@ local function ungroup(v)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Projection ♡˚
-------------------------------------------------------------------------------------------------
-
-local proj_pivot = models:newPart("proj_pivot", "Skull")
-	:scale(16)
-local proj_model = proj_pivot:newPart("proj_model")
-	:visible(false)
-local dirs = { north = 0, east = 90, south = 180, west = 270 }
-local offset = vec(0, -0.25, -0.25)
-
----Adds a projection part
----@param uuid string
----@param model ModelPart
----@param pos Vector3
----@param block BlockState?
-local function proj_add(uuid, model, pos, block)
-	model:moveTo(proj_model:newPart(uuid))
-		:parentType("None")
-		:visible(true)
-
-	if block.id == "minecraft:player_head" then
-		proj_model[uuid]
-			:pos(pos)
-			:rot(0, block.properties.rotation * -22.5)
-			:scale(1 / 16)
-	elseif block.id == "minecraft:player_wall_head" then
-		local angle = -dirs[block.properties.facing]
-
-		proj_model[uuid]
-			:pos(pos + vectors.rotateAroundAxis(angle, -offset, vec(0, 1, 0)))
-			:rot(0, angle)
-			:scale(1 / 16)
-	end
-end
-
----Removes a projection part by its uuid
----@param uuid string
-local function proj_rem(uuid)
-	if proj_model[uuid] then
-		proj_model[uuid]:remove()
-	end
-end
-
----Transforms the projection around the given skull
----@param block BlockState
-local function proj_mov(block)
-	local mat = matrices.mat4()
-		:translate(-block:getPos())
-
-	if block.id == "minecraft:player_head" then
-		mat:rotateY(block.properties.rotation * 22.5)
-	elseif block.id == "minecraft:player_wall_head" then
-		mat:rotateY(dirs[block.properties.facing])
-			:translate(offset)
-	end
-
-	proj_model:matrix(mat)
-end
-
---#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Models ♡˚
 ------------------------------------------------------------------------------------------------
 
@@ -336,21 +271,14 @@ end
 ---@param m ModelPart
 ---@param g FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]
 local function set_model(s, m, g)
-	local priv = s[1]
-	local p = priv.models
+	local p = s[1].models
 
 	for c in pairs(ungroup(g)) do
-		if s.block and (c == "BLOCK" or c == "OTHER") then
-			proj_rem(priv.uuid)
-			proj_add(priv.uuid, copy_model(m), s.block:getPos(), s.block)
-		else
-			if p[c] then
-				p[c]:remove()
-			end
-			p[c] = copy_model(m)
+		if p[c] then
+			p[c]:remove()
 		end
+		p[c] = copy_model(m)
 	end
-	-- end
 
 	return s
 end
@@ -421,8 +349,6 @@ function class:remove()
 	uuids[priv.uuid] = nil
 	all[priv.id] = nil
 
-	proj_rem(priv.uuid)
-
 	for _, m in pairs(priv.models) do
 		m:remove()
 	end
@@ -489,7 +415,7 @@ local skull_meta = { __index = class, __type = "FOXSkull" }
 ---@param block BlockState
 ---@param item ItemStack
 ---@param entity Entity
----@param context FOXSkullAPI.Context
+---@param context Event.SkullRender.context
 ---@return FOXSkullAPI.Skull
 local function new(block, item, entity, context)
 	local self = setmetatable({
@@ -539,47 +465,19 @@ end
 --#REGION ˚♡ FOXSkull > Service ♡˚
 ------------------------------------------------------------------------------------------------
 
---#REGION Render
-
----@type boolean
-local render
-
-function events.world_render()
-	render = true
-end
-
 function events.skull_render(delta, block, item, entity, context)
-	local self, priv
-
-	if block then
-		---@diagnostic disable-next-line: param-type-mismatch
-		self = all[block:getPos():toString()] or new(block, item, entity, context)
-		priv = self[1]
-
-		if not render then return true end
-		render = false
-
-		swap_model(proj_model)
-		proj_mov(block)
-	else
-		---@diagnostic disable-next-line: param-type-mismatch
-		self = get(item) or new(block, item, entity, context)
-		priv = self[1]
-
-		swap_model(priv.models[context] or priv.models.OTHER)
-	end
+	local self = get(block or item) or new(block, item, entity, context)
+	local priv = self[1]
 
 	priv.timestamp = client.getSystemTime()
-	---@diagnostic disable-next-line: assign-type-mismatch
 	self.context = context
 
-	skull_event.pre_render(delta, self, context)
+	skull_event.skull_render(delta, self, context)
 	if self.render then
-		---@diagnostic disable-next-line: param-type-mismatch
 		self.render(delta, self, context)
 	end
 
-	skull_event.post_render(delta, self, context)
+	swap_model(priv.models[context] or priv.models.OTHER)
 
 	return priv.hidden
 end
@@ -589,7 +487,7 @@ end
 
 local function tick()
 	for _, self in pairs(all) do
-		skull_event.tick(self)
+		skull_event.skull_tick(self)
 		if self.tick then
 			self.tick(self)
 		end
@@ -655,8 +553,6 @@ end
 
 --#ENDREGION
 
---#ENDREGION
-
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkullAPI ♡˚
 --==============================================================================================================================
@@ -672,9 +568,8 @@ end
 ---@field skull_init FOXSkullAPI.Functions.Skull
 ---@field skull_deinit FOXSkullAPI.Functions.Skull
 ---@field skull_error FOXSkullAPI.Functions.Other
----@field pre_render FOXSkullAPI.Functions.Render
----@field post_render FOXSkullAPI.Functions.Render
----@field tick FOXSkullAPI.Functions.Tick
+---@field skull_render FOXSkullAPI.Functions.Render
+---@field skull_tick FOXSkullAPI.Functions.Tick
 ---@field protected [1] FOXSkullAPI.Events
 local skulls = setmetatable({}, {
 	__index = function(s, k)
