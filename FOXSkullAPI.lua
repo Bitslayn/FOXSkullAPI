@@ -237,6 +237,66 @@ local function ungroup(v)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
+--#REGION ˚♡ FOXSkull > Projection ♡˚
+------------------------------------------------------------------------------------------------
+
+local proj_pivot = models:newPart("proj_pivot", "Skull")
+	:scale(16)
+local proj_model = proj_pivot:newPart("proj_model")
+	:visible(false)
+local dirs = { north = 0, east = 90, south = 180, west = 270 }
+local offset = vec(0, -0.25, -0.25)
+
+---Adds a projection part
+---@param uuid string
+---@param model ModelPart
+---@param pos Vector3
+---@param block BlockState?
+local function proj_add(uuid, model, pos, block)
+	model:moveTo(proj_model:newPart(uuid))
+		:parentType("None")
+		:visible(true)
+
+	if block.id == "minecraft:player_head" then
+		proj_model[uuid]
+			:pos(pos)
+			:rot(0, block.properties.rotation * -22.5)
+			:scale(1 / 16)
+	elseif block.id == "minecraft:player_wall_head" then
+		local angle = -dirs[block.properties.facing]
+
+		proj_model[uuid]
+			:pos(pos + vectors.rotateAroundAxis(angle, -offset, vec(0, 1, 0)))
+			:rot(0, angle)
+			:scale(1 / 16)
+	end
+end
+
+---Removes a projection part by its uuid
+---@param uuid string
+local function proj_rem(uuid)
+	if proj_model[uuid] then
+		proj_model[uuid]:remove()
+	end
+end
+
+---Transforms the projection around the given skull
+---@param block BlockState
+local function proj_mov(block)
+	local mat = matrices.mat4()
+		:translate(-block:getPos())
+
+	if block.id == "minecraft:player_head" then
+		mat:rotateY(block.properties.rotation * 22.5)
+	elseif block.id == "minecraft:player_wall_head" then
+		mat:rotateY(dirs[block.properties.facing])
+			:translate(offset)
+	end
+
+	proj_model:matrix(mat)
+end
+
+--#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Models ♡˚
 ------------------------------------------------------------------------------------------------
 
@@ -276,16 +336,37 @@ end
 ---@param m ModelPart
 ---@param g FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]
 local function set_model(s, m, g)
-	local p = s[1].models
+	local priv = s[1]
+	local p = priv.models
 
 	for c in pairs(ungroup(g)) do
-		if p[c] then
-			p[c]:remove()
+		if s.block and (c == "BLOCK" or c == "OTHER") then
+			proj_rem(priv.uuid)
+			proj_add(priv.uuid, copy_model(m), s.block:getPos(), s.block)
+		else
+			if p[c] then
+				p[c]:remove()
+			end
+			p[c] = copy_model(m)
 		end
-		p[c] = copy_model(m)
 	end
+	-- end
 
 	return s
+end
+
+---@type ModelPart?
+local curr_model
+---@type fun(self: ModelPart, state: boolean)
+local visible = figuraMetatables.ModelPart.__index(models, "visible")
+
+---Swaps the currently rendered skull model
+---@param m ModelPart?
+local function swap_model(m)
+	if curr_model then
+		visible(curr_model, false)
+	end
+	curr_model = m and visible(m, true)
 end
 
 --#ENDREGION -----------------------------------------------------------------------------------
@@ -340,6 +421,8 @@ function class:remove()
 	uuids[priv.uuid] = nil
 	all[priv.id] = nil
 
+	proj_rem(priv.uuid)
+
 	for _, m in pairs(priv.models) do
 		m:remove()
 	end
@@ -381,8 +464,7 @@ local type_id = {
 ---@param key FOXSkullAPI.Skull.Keys
 ---@return string?
 local function get_id(key)
-	local f = type_id[type(key)]
-	if f then return f(key) end
+	return type_id[type(key)](key)
 end
 
 ---Gets a skull that has been initialized
@@ -457,34 +539,53 @@ end
 --#REGION ˚♡ FOXSkull > Service ♡˚
 ------------------------------------------------------------------------------------------------
 
----@type ModelPart?
-local curr_model
-local visible = figuraMetatables.ModelPart.__index(models, "visible")
+--#REGION Render
+
+---@type boolean
+local render
+
+function events.world_render()
+	render = true
+end
 
 function events.skull_render(delta, block, item, entity, context)
-	local self = get(block or item) or new(block, item, entity, context)
-	local priv = self[1]
+	local self, priv
+
+	if block then
+		---@diagnostic disable-next-line: param-type-mismatch
+		self = all[block:getPos():toString()] or new(block, item, entity, context)
+		priv = self[1]
+
+		if not render then return true end
+		render = false
+
+		swap_model(proj_model)
+		proj_mov(block)
+	else
+		---@diagnostic disable-next-line: param-type-mismatch
+		self = get(item) or new(block, item, entity, context)
+		priv = self[1]
+
+		swap_model(priv.models[context] or priv.models.OTHER)
+	end
 
 	priv.timestamp = client.getSystemTime()
+	---@diagnostic disable-next-line: assign-type-mismatch
 	self.context = context
 
 	skull_event.pre_render(delta, self, context)
 	if self.render then
+		---@diagnostic disable-next-line: param-type-mismatch
 		self.render(delta, self, context)
-	end
-
-	if curr_model then
-		visible(curr_model, false)
-	end
-	curr_model = priv.models[context] or priv.models.OTHER
-	if curr_model then
-		visible(curr_model, true)
 	end
 
 	skull_event.post_render(delta, self, context)
 
 	return priv.hidden
 end
+
+--#ENDREGION
+--#REGION Tick
 
 local function tick()
 	for _, self in pairs(all) do
@@ -500,6 +601,59 @@ function events.world_tick()
 	if player:isLoaded() then return end
 	tick()
 end
+
+--#ENDREGION
+--#REGION Flush
+
+---@type string
+local flush_key
+local function flushRender()
+	flush_key = next(all, flush_key)
+	local self = all[flush_key]
+	if not self then return end
+
+	local block = self.block
+
+	local timer = block and 50 or 2000
+	if client.getSystemTime() - self[1].timestamp < timer then return end
+
+	if block then
+		local pos = block:getPos()
+		if world.isChunkLoaded(pos) and world.getBlockState(pos) == block then return end
+	end
+
+	remove(flush_key)
+	flush_key = nil
+end
+
+function events.render()
+	flushRender()
+end
+
+function events.world_render()
+	if player:isLoaded() then return end
+	flushRender()
+end
+
+---@type Event.OnPlaySound.func
+local function on_play_sound(id, pos, _, _, _, _, p)
+	if not p or id ~= "minecraft:block.stone.break" then return end
+
+	local timer = 0
+	local function deinit_tick()
+		timer = timer + 1
+		if timer < 2 then return end
+		remove(world.getBlockState(pos))
+		events.world_tick:remove(deinit_tick)
+	end
+	events.world_tick = deinit_tick
+end
+
+function events.on_play_sound(...)
+	pcall(on_play_sound, ...)
+end
+
+--#ENDREGION
 
 --#ENDREGION
 

@@ -10,6 +10,10 @@ function skulls.skull_init(skull)
 	skull:model(default)
 end
 
-function skulls.skull_deinit(skull)
-	print("Removed skull: ", skull)
-end
+-- function skulls.skull_init(skull)
+-- 	print("Added skull: ", skull)
+-- end
+
+-- function skulls.skull_deinit(skull)
+-- 	print("Removed skull: ", skull)
+-- end
