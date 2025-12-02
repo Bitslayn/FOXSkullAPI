@@ -500,6 +500,8 @@ end
 --#REGION ˚♡ FOXSkull > Service ♡˚
 ------------------------------------------------------------------------------------------------
 
+--#REGION Render
+
 function events.skull_render(delta, block, item, entity, context)
 	local self = get(block or item) or new(block, item, entity, context)
 	local priv = self[1]
@@ -585,6 +587,8 @@ end
 function events.on_play_sound(...)
 	pcall(on_play_sound, ...)
 end
+
+--#ENDREGION
 
 --#ENDREGION
 
