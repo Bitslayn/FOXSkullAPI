@@ -9,32 +9,6 @@ Github: https://github.com/Bitslayn/FOXSkullAPI
 Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 ]]
 
---==============================================================================================================================
---#REGION ˚♡ Config ♡˚
---==============================================================================================================================
-
----@class FOXSkullAPI.Config
----@field log_errors boolean Enable logging all skull errors to chat.
----@field host_only_logging boolean Allows logging errors only to host. Does nothing with log_errors = false.
----@field display_name string Set this to your IGN to avoid erroring while you're offline. Sets the skin to use for unmodeled or errored skulls.
----@field load_addons boolean Enable loading add-ons.
-local config = {
-	-- Enable this to avoid erroring your avatar when a skull errors.
-	error_safely = true,
-	-- Enable this to simplify error tracebacks. Does nothing with error_safely = false.
-	truncate_errors = true,
-	-- Enable logging all skull errors to chat.
-	log_errors = true,
-	-- Allows logging errors only to host. Does nothing with log_errors = false.
-	host_only_logging = true,
-
-	-- Set this to your IGN to avoid erroring while you're offline. Sets the skin to use for unmodeled or errored skulls.
-	display_name = "Steve",
-
-	-- Enable loading add-ons.
-	load_addons = true,
-}
-
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkull ♡˚
 --==============================================================================================================================
@@ -90,27 +64,16 @@ local skull_event = {}
 ---@param ... any
 ---@return boolean, unknown
 local function try(s, f, ...)
-	if not config.error_safely then
-		return f(...)
-	end
-
 	---@type boolean, string
 	local succ, res = pcall(f, ...)
 	if not succ then
-		if config.truncate_errors then
-			res = res and "§c"
-				.. res:match("^(.-)event_meta")
-				:gsub("'f%d+'", "<?>")
-				:gsub("%s%s", "\n  ")
-				.. "[FOXSkullAPI]: in ?"
-		else
-			res = res and "§c" .. res:gsub("%s%s", "\n  ")
-		end
+		res = res and "§c"
+			.. res:match("^(.-)event_meta")
+			:gsub("'f%d+'", "<?>")
+			:gsub("%s%s", "\n  ")
+			.. "[FOXSkullAPI]: in ?"
 
 		s[1].error = res or true
-		if config.log_errors and (not config.host_only_logging and true or host:isHost()) then
-			print(res)
-		end
 
 		skull_event.skull_error(s)
 	end
@@ -268,12 +231,10 @@ end
 --#REGION ˚♡ FOXSkull > Models ♡˚
 ------------------------------------------------------------------------------------------------
 
-local name = config.display_name ~= "Steve" and config.display_name or avatar:getEntityName()
-
 local default = models:newPart("default", "Skull")
 	:visible(false)
 default:newItem("item")
-	:item("minecraft:player_head{SkullOwner:" .. name .. "}")
+	:item("minecraft:player_head{SkullOwner:'" .. avatar:getEntityName() .. "'}")
 	:pos(0, 8, 0)
 default:newSprite("sprite")
 	:texture(textures:newTexture("", 1, 1))
@@ -644,17 +605,14 @@ end
 ---@field skull_error FOXSkullAPI.Functions.Other
 ---@field skull_render FOXSkullAPI.Functions.Render
 ---@field skull_tick FOXSkullAPI.Functions.Tick
----@field config FOXSkullAPI.Config
 ---@field protected [1] FOXSkullAPI.Events
-local skulls = { config = config }
+local skulls = {}
 ---@protected
 skulls[1] = skull_event
 
 local path_json = toJson(listFiles(nil, true))
-if config.load_addons then
-	for path in path_json:gmatch('[^"]*FOXSkull$[^"]*') do
-		pcall(require(path), skulls, class, skull_event)
-	end
+for path in path_json:gmatch('[^"]*FOXSkull$[^"]*') do
+	pcall(require(path), skulls, class, skull_event)
 end
 
 return setmetatable(skulls, {
