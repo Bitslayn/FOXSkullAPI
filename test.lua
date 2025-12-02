@@ -10,6 +10,8 @@ function skulls.skull_init(skull)
 	skull:model(default)
 end
 
+models.Models.Skin.root:visible(true):moveTo(skulls.projection)
+
 -- function skulls.skull_init(skull)
 -- 	print("Added skull: ", skull)
 -- end

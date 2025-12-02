@@ -16,59 +16,24 @@ Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
 ---@class FOXSkullAPI.Config
 ---@field log_errors boolean Enable logging all skull errors to chat.
 ---@field host_only_logging boolean Allows logging errors only to host. Does nothing with log_errors = false.
----@field username string Set this to your IGN to avoid erroring while you're offline. Sets the skin to use for unmodeled or errored skulls.
----@field load_addons boolean Enables loading add-ons automatically.
+---@field display_name string Set this to your IGN to avoid erroring while you're offline. Sets the skin to use for unmodeled or errored skulls.
+---@field load_addons boolean Enable loading add-ons.
 local config = {
+	-- Enable this to avoid erroring your avatar when a skull errors.
+	error_safely = true,
+	-- Enable this to simplify error tracebacks. Does nothing with error_safely = false.
+	truncate_errors = true,
 	-- Enable logging all skull errors to chat.
 	log_errors = true,
 	-- Allows logging errors only to host. Does nothing with log_errors = false.
 	host_only_logging = true,
 
 	-- Set this to your IGN to avoid erroring while you're offline. Sets the skin to use for unmodeled or errored skulls.
-	username = "Steve",
+	display_name = "Steve",
 
-	-- Enables loading add-ons automatically.
+	-- Enable loading add-ons.
 	load_addons = true,
 }
-
---#ENDREGION --=================================================================================================================
---#REGION ˚♡ Utilities ♡˚
---==============================================================================================================================
-
-------------------------------------------------------------------------------------------------
---#REGION ˚♡ Utilities > Assert ♡˚
-------------------------------------------------------------------------------------------------
-
----Custom assertion function with integer level
----@generic T
----@param v? T
----@param m? any
----@param l? integer
----@return T v
-local function assert(v, m, l)
-	return v or error(m, (l or 1) + 1)
-end
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ Utilities > Find Script ♡˚
-------------------------------------------------------------------------------------------------
-
-local path_json = toJson(listFiles(nil, true))
-
----Returns the script path that matches the given pattern
----@param p string
----@return string?
-local function path(p)
-	return path_json:match(p
-		:gsub('"', '\\"') -- Escape all quotation marks
-		:gsub("^%^", '%%f[^"]') -- Replace start of pattern ^ with "
-		:gsub("%$$", '%%f["]') -- Replace end of pattern $ with "
-		:gsub("^", '[^"]*') -- Pad start of pattern to "
-		:gsub("$", '[^"]*') -- Pad end of pattern to "
-	)
-end
-
---#ENDREGION
 
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ FOXSkull ♡˚
@@ -81,7 +46,7 @@ end
 ---@field context Event.SkullRender.context
 ---@field render FOXSkullAPI.Functions.Render?
 ---@field tick FOXSkullAPI.Functions.Tick?
----@field package [1] FOXSkullAPI.Skull.Private
+---@field protected [1] FOXSkullAPI.Skull.Private
 local class = {}
 
 ---@class FOXSkullAPI.Skull.Private
@@ -114,6 +79,9 @@ local uuids = {}
 --#REGION ˚♡ FOXSkull > Events ♡˚
 ------------------------------------------------------------------------------------------------
 
+---@class FOXSkullAPI.Events
+local skull_event = {}
+
 ---Catches an error and errors the skull
 ---
 ---Returns the pcall result
@@ -122,21 +90,41 @@ local uuids = {}
 ---@param ... any
 ---@return boolean, unknown
 local function try(s, f, ...)
+	if not config.error_safely then
+		return f(...)
+	end
+
 	---@type boolean, string
 	local succ, res = pcall(f, ...)
 	if not succ then
-		res = res and "§c"
-			.. res:match("^(.-)event_meta")
-			:gsub("'f%d+'", "<?>")
-			:gsub("%s%s", "\n  ")
-			.. "[FOXSkullAPI]: in ?"
+		if config.truncate_errors then
+			res = res and "§c"
+				.. res:match("^(.-)event_meta")
+				:gsub("'f%d+'", "<?>")
+				:gsub("%s%s", "\n  ")
+				.. "[FOXSkullAPI]: in ?"
+		else
+			res = res and "§c" .. res:gsub("%s%s", "\n  ")
+		end
 
 		s[1].error = res or true
 		if config.log_errors and (not config.host_only_logging and true or host:isHost()) then
 			print(res)
 		end
+
+		skull_event.skull_error(s)
 	end
 	return succ, res
+end
+
+---Custom assertion function with integer level
+---@generic T
+---@param v? T
+---@param m? any
+---@param l? integer
+---@return T v
+local function assert(v, m, l)
+	return v or error(m, (l or 1) + 1)
 end
 
 ---Optimizes and allows for calling events
@@ -174,24 +162,21 @@ local event_meta = {
 	end,
 }
 
----@class FOXSkullAPI.Events
-local skull_event = {
-	---Called whenever any skull starts rendering.
-	---@type FOXSkullAPI.Functions.Skull[]
-	skull_init = setmetatable({}, event_meta),
-	---Called whenever any skull stops rendering.
-	---@type FOXSkullAPI.Functions.Skull[]
-	skull_deinit = setmetatable({}, event_meta),
-	---Called on a skull that errors.
-	---@type FOXSkullAPI.Functions.Other[]
-	skull_error = setmetatable({}, event_meta),
-	---Called on each skull that renders regardless of its type, for each context it renders in.
-	---@type FOXSkullAPI.Functions.Render[]
-	skull_render = setmetatable({}, event_meta),
-	---Called on each skull that renders but only once per tick just like the skull_tick function.
-	---@type FOXSkullAPI.Functions.Tick[]
-	skull_tick = setmetatable({}, event_meta),
-}
+---Called whenever any skull starts rendering.
+---@type FOXSkullAPI.Functions.Skull[]
+skull_event.skull_init = setmetatable({}, event_meta)
+---Called whenever any skull stops rendering.
+---@type FOXSkullAPI.Functions.Skull[]
+skull_event.skull_deinit = setmetatable({}, event_meta)
+---Called on a skull that errors.
+---@type FOXSkullAPI.Functions.Other[]
+skull_event.skull_error = setmetatable({}, event_meta)
+---Called on each skull that renders regardless of its type, for each context it renders in.
+---@type FOXSkullAPI.Functions.Render[]
+skull_event.skull_render = setmetatable({}, event_meta)
+---Called on each skull that renders but only once per tick just like the skull_tick function.
+---@type FOXSkullAPI.Functions.Tick[]
+skull_event.skull_tick = setmetatable({}, event_meta)
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Groups ♡˚
@@ -283,12 +268,12 @@ end
 --#REGION ˚♡ FOXSkull > Models ♡˚
 ------------------------------------------------------------------------------------------------
 
+local name = config.display_name ~= "Steve" and config.display_name or avatar:getEntityName()
+
 local default = models:newPart("default", "Skull")
 	:visible(false)
 default:newItem("item")
-	:item(string.format("minecraft:player_head{SkullOwner:%s}",
-		config.username ~= "Steve" and config.username or avatar:getEntityName()
-	))
+	:item("minecraft:player_head{SkullOwner:" .. name .. "}")
 	:pos(0, 8, 0)
 default:newSprite("sprite")
 	:texture(textures:newTexture("", 1, 1))
@@ -562,7 +547,7 @@ function events.skull_render(delta, block, item, entity, context)
 	self.context = context
 
 	swap_model(not priv.error and (priv.models[context] or priv.models.OTHER) or default)
-	skull_event.skull_render(delta, self, context)
+	skull_event.skull_render(self, delta, context)
 
 	if priv.error then return end
 
@@ -596,7 +581,7 @@ end
 
 ---@type string
 local flush_key
-local function flushRender()
+local function flush_render()
 	flush_key = next(all, flush_key)
 	local self = all[flush_key]
 	if not self then return end
@@ -611,18 +596,15 @@ local function flushRender()
 		if world.isChunkLoaded(pos) and world.getBlockState(pos) == block then return end
 	end
 
-	local old = flush_key
+	local old_flush_key = flush_key
 	flush_key = next(all, flush_key)
-	remove(old)
+	remove(old_flush_key)
 end
 
-function events.render()
-	flushRender()
-end
-
+events.render = flush_render
 function events.world_render()
 	if player:isLoaded() then return end
-	flushRender()
+	flush_render()
 end
 
 ---@type Event.OnPlaySound.func
@@ -664,7 +646,18 @@ end
 ---@field skull_tick FOXSkullAPI.Functions.Tick
 ---@field config FOXSkullAPI.Config
 ---@field protected [1] FOXSkullAPI.Events
-local skulls = setmetatable({ config = config }, {
+local skulls = { config = config }
+---@protected
+skulls[1] = skull_event
+
+local path_json = toJson(listFiles(nil, true))
+if config.load_addons then
+	for path in path_json:gmatch('[^"]*FOXSkull$[^"]*') do
+		pcall(require(path), skulls, class, skull_event)
+	end
+end
+
+return setmetatable(skulls, {
 	__index = function(s, k)
 		return s[1][k]
 	end,
@@ -678,9 +671,5 @@ local skulls = setmetatable({ config = config }, {
 		table.insert(s[k], v)
 	end,
 })
-
-rawset(skulls, 1, skull_event)
-
-return skulls
 
 --#ENDREGION
