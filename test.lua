@@ -1,16 +1,16 @@
 local skulls = require("Scripts.SkullAPI.FOXSkullAPI")
 
-local default = models.Models.Player.Root.Neck.Head
-	:copy("Skull")
-	:parentType("None")
-	:offsetRot()
-default:pos(-default:getPivot())
+-- local default = models.Models.Player.Root.Neck.Head
+-- 	:copy("Skull")
+-- 	:parentType("None")
+-- 	:offsetRot()
+-- default:pos(-default:getPivot())
 
-function skulls.skull_init(skull)
-	skull:model(default)
-end
+-- function skulls.skull_init(skull)
+-- 	skull:model(default)
+-- end
 
-models.Models.Skin.root:visible(true):moveTo(skulls.projection)
+-- models.Models.Skin.root:visible(true):moveTo(skulls.projection)
 
 -- function skulls.skull_init(skull)
 -- 	print("Added skull: ", skull)

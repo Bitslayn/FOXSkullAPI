@@ -1,637 +1,179 @@
---[[
-____  ___ __   __
-| __|/ _ \\ \ / /
-| _|| (_) |> w <
-|_|  \___//_/ \_\
-FOX's SkullAPI v1.0.0-dev
+-- --[[
+-- ____  ___ __   __
+-- | __|/ _ \\ \ / /
+-- | _|| (_) |> w <
+-- |_|  \___//_/ \_\
+-- FOX's SkullAPI v1.0.0-dev
 
-Github: https://github.com/Bitslayn/FOXSkullAPI
-Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
-]]
+-- Github: https://github.com/Bitslayn/FOXSkullAPI
+-- Docs: https://github.com/Bitslayn/FOXSkullAPI/wiki
+-- ]]
 
---#ENDREGION --=================================================================================================================
+--==============================================================================================================================
 --#REGION ˚♡ FOXSkull ♡˚
 --==============================================================================================================================
 
----@class FOXSkullAPI.Skull
----@field block BlockState?
----@field item ItemStack?
----@field entity Entity?
----@field context Event.SkullRender.context
----@field render FOXSkullAPI.Functions.Render?
----@field tick FOXSkullAPI.Functions.Tick?
----@field protected [1] FOXSkullAPI.Skull.Private
-local class = {}
-
----@class FOXSkullAPI.Skull.Private
----@field models table<FOXSkullAPI.Context.Groups, ModelPart>
----@field hidden boolean?
----@field id string
----@field uuid string
----@field timestamp integer
----@field error string|true?
-
----@alias FOXSkullAPI.Functions.Skull fun(self: FOXSkullAPI.Skull, block: BlockState?, item: ItemStack?, entity: Entity?, context: Event.SkullRender.context)
----@alias FOXSkullAPI.Functions.Render fun(self: FOXSkullAPI.Skull, delta: number, context: Event.SkullRender.context)
----@alias FOXSkullAPI.Functions.Tick fun(self: FOXSkullAPI.Skull)
----@alias FOXSkullAPI.Functions.Other fun(self: FOXSkullAPI.Skull)
-
----@alias FOXSkullAPI.Skull.Keys
----| string A skull UUID
----| BlockState A skull block
----| ItemStack A skull item
----| Vector3 A skull position
-
----Stores all skulls with id keys
----@type table<string, FOXSkullAPI.Skull>
-local all = {}
----Stores uuid, id pairs
----@type table<string, string>
-local uuids = {}
+local viewer = client.getViewer()
 
 ------------------------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Events ♡˚
 ------------------------------------------------------------------------------------------------
 
----@class FOXSkullAPI.Events
-local skull_event = {}
+---Creates a new event that can be called
+---@return table
+local function new_event()
+	return setmetatable({}, {
+		__call = function() end,
+		__newindex = function(s, k, v)
+			rawset(s, k, v)
 
----Catches an error and errors the skull
----
----Returns the pcall result
----@param s FOXSkullAPI.Skull
----@param f function
----@param ... any
----@return boolean, unknown
-local function try(s, f, ...)
-	---@type boolean, string
-	local succ, res = pcall(f, ...)
-	if not succ then
-		res = res and "§c"
-			.. res:match("^(.-)event_meta")
-			:gsub("'f%d+'", "<?>")
-			:gsub("%s%s", "\n  ")
-			.. "[FOXSkullAPI]: in ?"
+			-- local f1=_ENV[1]
+			-- local f2=_ENV[2]
+			-- local f3=_ENV[3]
+			-- return function(...)f1(...)f2(...)f3(...)end
 
-		s[1].error = res or true
-
-		skull_event.skull_error(s)
-	end
-	return succ, res
-end
-
----Custom assertion function with integer level
----@generic T
----@param v? T
----@param m? any
----@param l? integer
----@return T v
-local function assert(v, m, l)
-	return v or error(m, (l or 1) + 1)
-end
-
----Optimizes and allows for calling events
-local event_meta = {
-	__call = function(s, ...)
-		return s.c and try(..., s.c, ...)
-	end,
-	__newindex = function(s, k, v)
-		rawset(s, k, v)
-
-		-- Generates a return function
-
-		-- local f1=_ENV[1]
-		-- local f2=_ENV[2]
-		-- local f3=_ENV[3]
-		-- return function(...)f1(...)f2(...)f3(...)end
-
-		local l, c = {}, {}
-		for i = 1, #s do
-			l[i] = string.format("local f%d=_ENV[%d]", i, i)
-			c[i] = string.format("f%d(...)", i)
-		end
-
-		local f = load(string.format(
-			"%s\nreturn function(...)%send",
-			table.concat(l, "\n"),
-			table.concat(c, "")
-		), "event_meta", s)
-
-		-- Stores a function with all event functions localized
-
-		-- function(...) f1(...); f2(...); f3(...); end
-
-		rawset(s, "c", f())
-	end,
-}
-
----Called whenever any skull starts rendering.
----@type FOXSkullAPI.Functions.Skull[]
-skull_event.skull_init = setmetatable({}, event_meta)
----Called whenever any skull stops rendering.
----@type FOXSkullAPI.Functions.Skull[]
-skull_event.skull_deinit = setmetatable({}, event_meta)
----Called on a skull that errors.
----@type FOXSkullAPI.Functions.Other[]
-skull_event.skull_error = setmetatable({}, event_meta)
----Called on each skull that renders regardless of its type, for each context it renders in.
----@type FOXSkullAPI.Functions.Render[]
-skull_event.skull_render = setmetatable({}, event_meta)
----Called on each skull that renders but only once per tick just like the skull_tick function.
----@type FOXSkullAPI.Functions.Tick[]
-skull_event.skull_tick = setmetatable({}, event_meta)
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Groups ♡˚
-------------------------------------------------------------------------------------------------
-
----@alias FOXSkullAPI.Context
----| "FIRST_PERSON_LEFT_HAND" Skull held in the left hand, in first person
----| "FIRST_PERSON_RIGHT_HAND" Skull held in the right hand, in first person
----| "THIRD_PERSON_LEFT_HAND" Skull held in the left hand, in third person
----| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
----| "HEAD" Skull worn in the helmet slot
----| "GUI" Skull inside an inventory or GUI
----| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
----| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
----| "BLOCK" Skull placed as a block
----| "OTHER" Fallback context
-
----@alias FOXSkullAPI.Context.Groups
----| "HANDS" Skull held in either hand
----| "LEFT_HAND" Skull held in left hand
----| "RIGHT_HAND" Skull held in right hand
----| "FIRST_PERSON" Skull held in either hand, in first person
----| "THIRD_PERSON" Skull held in either hand, in third person
----| "FIRST_PERSON_LEFT_HAND" Skull held in the left hand, in first person
----| "FIRST_PERSON_RIGHT_HAND" Skull held in the right hand, in first person
----| "THIRD_PERSON_LEFT_HAND" Skull held in the left hand, in third person
----| "THIRD_PERSON_RIGHT_HAND" Skull held in the right hand, in third person
----| "ITEM" Any skull item
----| "CONTAINER" Skull inside an inventory or GUI **In Figura 0.1.5, this would also target skulls displayed on the floor and in an item frame**
----| "HEAD" Skull worn in the helmet slot
----| "GUI" Skull inside an inventory or GUI
----| "GROUND" Skull dropped on the floor **Figura 0.1.6+**
----| "FIXED" Skull placed in an item frame **Figura 0.1.6+**
----| "BLOCK" Skull placed as a block
----| "ALL" Any skull
----| "OTHER" Fallback context
-
----@type table<string, string[]>
-local context_groups = {
-	LEFT_HAND = { "FIRST_PERSON_LEFT_HAND", "THIRD_PERSON_LEFT_HAND" },
-	RIGHT_HAND = { "FIRST_PERSON_RIGHT_HAND", "THIRD_PERSON_RIGHT_HAND" },
-	FIRST_PERSON = { "FIRST_PERSON_LEFT_HAND", "FIRST_PERSON_RIGHT_HAND" },
-	THIRD_PERSON = { "THIRD_PERSON_LEFT_HAND", "THIRD_PERSON_RIGHT_HAND" },
-	HANDS = { "LEFT_HAND", "RIGHT_HAND" },
-	CONTAINER = { "GUI", "OTHER" },
-	ITEM = { "HANDS", "HEAD", "FIXED", "GROUND", "CONTAINER" },
-	ALL = { "ITEM", "BLOCK" },
-}
-
----@type table<FOXSkullAPI.Context.Groups, true>[]
-local group_cache = {}
-
----Gives a table containing contexts in the given group
----@param v FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]
----@return table<FOXSkullAPI.Context.Groups, true>
-local function ungroup(v)
-	if group_cache[v] then return group_cache[v] end
-
-	local r = {}
-
-	---Add keys to table, deep ungrouping where necessary
-	---@param g string
-	local function p(g)
-		local t = context_groups[g]
-		if t then
-			for _, h in ipairs(t) do
-				p(h)
+			local l, c = {}, {}
+			for i = 1, #s do
+				l[i] = string.format("local f%d=_ENV[%d]", i, i)
+				c[i] = string.format("f%d(...)", i)
 			end
-		else
-			r[g] = true
-		end
-	end
 
-	-- Initialize ungrouping
+			---@type function
+			local f = load(string.format(
+				"%s\nreturn function(...)%send",
+				table.concat(l, "\n"),
+				table.concat(c, "")
+			), "event_meta", s)()
 
-	if type(v) == "string" then
-		p(string.upper(v))
-		group_cache[v] = r
-	else
-		for _, h in ipairs(v) do
-			p(h)
-		end
-	end
+			-- function(...) f1(...); f2(...); f3(...); end
 
-	return r
+			getmetatable(s).__call = function(_, ...)
+				f(...)
+			end
+		end,
+	})
 end
 
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Models ♡˚
-------------------------------------------------------------------------------------------------
+---@class FOXSkullAPI.Events
+local skull_events = {
+	skull_init = new_event(),
+	block_init = new_event(),
+	item_init = new_event(),
 
-local default = models:newPart("default", "Skull")
-	:visible(false)
-default:newItem("item")
-	:item("minecraft:player_head{SkullOwner:'" .. avatar:getEntityName() .. "'}")
-	:pos(0, 8, 0)
-default:newSprite("sprite")
-	:texture(textures:newTexture("", 1, 1))
+	skull_deinit = new_event(),
+	block_deinit = new_event(),
+	item_deinit = new_event(),
 
----Copies the tasks from the source model to the destination model
----
----This is a backport of a built-in 0.1.6 feature
----@param s ModelPart
----@param d ModelPart
-local function copy_tasks(s, d)
-	for _, task in pairs(s:getTask()) do
-		d:addTask(task)
-	end
-end
-
----Copies a model and turns it into a skull model
----@param m ModelPart
----@return ModelPart
-local function copy_model(m)
-	local t = next(m:getTask())
-
-	local c = m:copy(m:getName())
-		:parentType("Skull")
-		:visible(false)
-		:moveTo(models)
-
-	if t and not next(c:getTask()) then
-		copy_tasks(m, c)
-	end
-
-	return c
-end
-
----Sets the model of a skull
----@param s FOXSkullAPI.Skull
----@param m ModelPart?
----@param g FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]
-local function set_model(s, m, g)
-	local p = s[1].models
-
-	for c in pairs(ungroup(g)) do
-		if p[c] then
-			p[c]:remove()
-		end
-		p[c] = m and copy_model(m)
-	end
-
-	return s
-end
-
----@type ModelPart?
-local curr_model
----@type fun(self: ModelPart, state: boolean)
-local visible = figuraMetatables.ModelPart.__index(models, "visible")
-
----Swaps the currently rendered skull model
----@param m ModelPart?
-local function swap_model(m)
-	if curr_model then
-		visible(curr_model, false)
-	end
-	curr_model = m and visible(m, true)
-end
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Methods ♡˚
-------------------------------------------------------------------------------------------------
-
----Sets this skull's model
----@param model ModelPart?
----@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
----@return self
-function class:model(model, context)
-	return set_model(self, model, context or "OTHER")
-end
-
----Sets this skull's model
----@param model ModelPart?
----@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
----@return self
-function class:setModel(model, context)
-	return set_model(self, model, context or "OTHER")
-end
-
----Returns this skull's model
----@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
----@return ModelPart?
-function class:getModel(context)
-	return context and self[1].models[next(ungroup(context))] or self[1].models.OTHER
-end
-
----Sets this skull's visibility state
----
----If state is nil, defaults to true
----@param state boolean?
----@return self
-function class:visible(state)
-	self[1].hidden = state ~= nil and not state
-	return self
-end
-
----Sets this skull's visibility state
----
----If state is nil, defaults to true
----@param state boolean?
----@return self
-function class:setVisible(state)
-	self[1].hidden = state ~= nil and not state
-	return self
-end
-
----Returns this skull's visibility state
----@return boolean
-function class:getVisible()
-	return not self[1].hidden
-end
-
----Returns if this skull's current context is of a context group
----@param context FOXSkullAPI.Context.Groups|FOXSkullAPI.Context.Groups[]?
----@return boolean
----@nodiscard
-function class:hasContext(context)
-	return ungroup(context)[self.context] or false
-end
-
----Sets the function to run on this skull every frame
----@param func FOXSkullAPI.Functions.Render
----@return self
-function class:setRender(func)
-	self.render = func
-	return self
-end
-
----Sets the function to run on this skull every tick
----@param func FOXSkullAPI.Functions.Tick
----@return self
-function class:setTick(func)
-	self.tick = func
-	return self
-end
-
----Removes this skull
----
----This function does not call the skull_deinit event
-function class:remove()
-	local priv = self[1]
-	uuids[priv.uuid] = nil
-	all[priv.id] = nil
-
-	for _, m in pairs(priv.models) do
-		m:remove()
-	end
-end
+	skull_render = new_event(),
+	skull_error = new_event(),
+}
 
 --#ENDREGION -----------------------------------------------------------------------------------
 --#REGION ˚♡ FOXSkull > Accessor ♡˚
 ------------------------------------------------------------------------------------------------
 
---#REGION Get
-
----@type table<string, fun(key: FOXSkullAPI.Skull.Keys, entity: Entity?): string>
-local type_id = {
-	---@param key string
-	---@return string
-	string = function(key)
-		return uuids[key]
-	end,
-	---@param key BlockState
-	---@return string
-	BlockState = function(key)
-		return key:getPos():toString()
-	end,
-	---@param key ItemStack
-	---@return string
-	ItemStack = function(key)
-		return key:getCount() .. key:toStackString()
-	end,
-	---@param key Vector3
-	---@return string
-	Vector3 = function(key)
-		return key:toString()
-	end,
-}
-
----Formats a supported key into an internalID
----
----Returns nil if the key is of an invalid type
----@param key FOXSkullAPI.Skull.Keys
----@return string?
-local function get_id(key)
-	return type_id[type(key)](key)
+local function deep_table(d)
+	return setmetatable({}, {
+		__index = function(t, k)
+			local v = d > 2 and deep_table(d - 1) or {}
+			t[k] = v
+			return v
+		end,
+	})
 end
 
----Gets a skull that has been initialized
----
----Returns nil if a skull with the given key does not exist
----@param key FOXSkullAPI.Skull.Keys
----@return FOXSkullAPI.Skull?
-local function get(key)
-	return all[key] or all[get_id(key)]
-end
+local blocks = deep_table(3)
+local items = deep_table(3)
 
---#ENDREGION
---#REGION New
+local default_model = models.Models.Player.Root.Neck.Head
+	:copy("Skull")
+	:parentType("None")
+	:offsetRot()
+default_model:pos(-default_model:getPivot())
 
-local skull_meta = { __index = class, __type = "FOXSkull" }
-
----Creates and returns a new skull with the given BlockState or ItemStack
----
----Calls the init event
----
----Returns nil if the key is of an invalid type
+---Creates a new skull
 ---@param block BlockState
 ---@param item ItemStack
----@param entity Entity
----@param context Event.SkullRender.context
----@return FOXSkullAPI.Skull
+---@param entity LivingEntity
+---@param context string
+---@return table
 local function new(block, item, entity, context)
-	local self = setmetatable({
+	local v = {
 		block = block,
 		item = item,
 		entity = entity,
 		context = context,
-	}, skull_meta)
-
-	local id = get_id(block or item)
-	local uuid = client.intUUIDToString(client.generateUUID())
-	self[1] = {
-		models = {},
-		hidden = false,
-		id = id,
-		uuid = uuid,
-		timestamp = client.getSystemTime(),
+		uuid = client.intUUIDToString(client.generateUUID())
 	}
 
-	uuids[uuid] = id
-	all[id] = self
+	if default_model then
+		v.OTHER = default_model:copy("OTHER")
+			:parentType("Skull")
+			:visible(false)
+			:moveTo(models)
+	end
 
-	skull_event.skull_init(self, item, block)
-
-	return self
+	return v
 end
 
---#ENDREGION
---#REGION Remove
+---Gets the skull block or item, creating one if none exist
+---@param block BlockState
+---@param item ItemStack
+---@param entity LivingEntity
+---@param context string
+---@return table
+local function get(block, item, entity, context)
+	if block then
+		-- Skull blocks
+		-- 15 instructions/t
 
----Removes a skull by its generic key
----
----Calls the deinit event
----@param key FOXSkullAPI.Skull.Keys
-local function remove(key)
-	local self = all[key] or all[get_id(key)]
-	if not self then return end
+		local x, y, z = block:getPos():unpack()
 
-	skull_event.skull_deinit(self, self.item, self.block)
+		local t = blocks[x][y]
+		if t[z] then return t[z] end
 
-	self:remove()
+		local v = new(block, item, entity, context)
+		t[z] = v
+		return v
+	else
+		-- Skull items
+		-- 20 instructions/t
+
+		local a = (entity or viewer):getUUID()
+		local b = item:toStackString()
+		local c = item:getCount()
+
+		local t = items[a][b]
+		if t[c] then return t[c] end
+
+		local v = new(block, item, entity, context)
+		t[c] = v
+		return v
+	end
 end
-
---#ENDREGION
 
 --#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ FOXSkull > Service ♡˚
+--#REGION ˚♡ FOXSkull > Process ♡˚
 ------------------------------------------------------------------------------------------------
 
---#REGION Render
+---@type ModelPart?
+local render_model
 
-function events.skull_render(delta, block, item, entity, context)
-	local self = get(block or item) or new(block, item, entity, context)
-	local priv = self[1]
+function events.skull_render(delta, ...)
+	local skull = get(...)
+	local ctx = select(4, ...)
+	skull.context = ctx
 
-	priv.timestamp = client.getSystemTime()
-	self.context = context
-
-	swap_model(not priv.error and (priv.models[context] or priv.models.OTHER) or default)
-	skull_event.skull_render(self, delta, context)
-
-	if priv.error then return end
-
-	if self.render then
-		self.render(self, delta, context)
+	if render_model then
+		render_model:visible(false)
 	end
 
-	return priv.hidden
+	local model = skull[ctx] or skull.OTHER
+	render_model = model and model:visible(true)
+
+	skull_events.skull_render(skull, delta, ctx)
 end
 
 --#ENDREGION
---#REGION Tick
-
-local function tick()
-	for _, self in pairs(all) do
-		skull_event.skull_tick(self)
-		if self.tick and not self[1].error then
-			self.tick(self)
-		end
-	end
-end
-
-events.tick = tick
-function events.world_tick()
-	if player:isLoaded() then return end
-	tick()
-end
-
---#ENDREGION
---#REGION Flush
-
----@type string
-local flush_key
-local function flush_render()
-	flush_key = next(all, flush_key)
-	local self = all[flush_key]
-	if not self then return end
-
-	local block = self.block
-
-	local timer = block and 50 or 2000
-	if client.getSystemTime() - self[1].timestamp < timer then return end
-
-	if block then
-		local pos = block:getPos()
-		if world.isChunkLoaded(pos) and world.getBlockState(pos) == block then return end
-	end
-
-	local old_flush_key = flush_key
-	flush_key = next(all, flush_key)
-	remove(old_flush_key)
-end
-
-events.render = flush_render
-function events.world_render()
-	if player:isLoaded() then return end
-	flush_render()
-end
-
----@type Event.OnPlaySound.func
-local function on_play_sound(id, pos, _, _, _, _, p)
-	if not p or id ~= "minecraft:block.stone.break" then return end
-
-	local timer = 0
-	local function deinit_tick()
-		timer = timer + 1
-		if timer < 2 then return end
-		remove(world.getBlockState(pos))
-		events.world_tick:remove(deinit_tick)
-	end
-	events.world_tick = deinit_tick
-end
-
-function events.on_play_sound(...)
-	pcall(on_play_sound, ...)
-end
-
---#ENDREGION
-
---#ENDREGION
-
---#ENDREGION --=================================================================================================================
---#REGION ˚♡ FOXSkullAPI ♡˚
---==============================================================================================================================
-
----@class FOXSkullAPI.Index
----@field protected [string] FOXSkullAPI.Skull?
----@field protected [BlockState] FOXSkullAPI.Skull?
----@field protected [ItemStack] FOXSkullAPI.Skull?
----@field protected [Vector3] FOXSkullAPI.Skull?
-
----TODO Add quick start guide and link to wiki here
----@class FOXSkullAPI: FOXSkullAPI.Index
----@field skull_init FOXSkullAPI.Functions.Skull
----@field skull_deinit FOXSkullAPI.Functions.Skull
----@field skull_error FOXSkullAPI.Functions.Other
----@field skull_render FOXSkullAPI.Functions.Render
----@field skull_tick FOXSkullAPI.Functions.Tick
----@field protected [1] FOXSkullAPI.Events
-local skulls = {}
----@protected
-skulls[1] = skull_event
-
-local path_json = toJson(listFiles(nil, true))
-for path in path_json:gmatch('[^"]*FOXSkull$[^"]*') do
-	pcall(require(path), skulls, class, skull_event)
-end
-
-return setmetatable(skulls, {
-	__index = function(s, k)
-		return s[1][k]
-	end,
-	__newindex = function(s, k, v)
-		s, k = s[1], string.lower(k)
-
-		local t = type(v)
-		assert(t == "function", "Expected Function, but got " .. t, 2)
-		assert(s[k], 'Cannot assign value on key "' .. k .. '"', 2)
-
-		table.insert(s[k], v)
-	end,
-})
 
 --#ENDREGION
