@@ -1402,10 +1402,7 @@ local function skullTick()
 	end
 end
 
-function events.tick()
-	skullTick()
-end
-
+events.tick = skullTick
 function events.world_tick()
 	if player:isLoaded() then return end
 	skullTick()
@@ -1416,7 +1413,7 @@ end
 
 ---@type FOXSkull.key.internalID
 local flushKey
-local function flushRender()
+local function flush()
 	flushKey = next(all, flushKey)
 	local self = all[flushKey]
 	if not self then return end
@@ -1435,27 +1432,21 @@ local function flushRender()
 	flushKey = nil
 end
 
-function events.render()
-	flushRender()
-end
-
+events.render = flush
 function events.world_render()
 	if player:isLoaded() then return end
-	flushRender()
+	flush()
 end
 
 ---@type Event.OnPlaySound.func
 local function on_play_sound(id, pos, _, _, _, _, path)
 	if not path or id ~= "minecraft:block.stone.break" then return end
 
-	local timer = 0
-	local function deinit_render()
-		timer = timer + 1
-		if timer < 2 then return end
+	local function delay_deinit()
 		remove(world.getBlockState(pos))
-		events.world_render:remove(deinit_render)
+		events.world_tick:remove(delay_deinit)
 	end
-	events.world_render = deinit_render
+	events.world_tick = delay_deinit
 end
 
 function events.on_play_sound(...)
@@ -1540,43 +1531,6 @@ local classKeys = {
 	block = "block_init",
 	any = "skull_init",
 }
-
----Creates a new skull mode which applies to all skulls with the name or mode variable
----
----Modes are applied on skull init, and the mode applied does not change when the variable is set after skull initialization
----@param key string
----@param class "item"|"block"|"any"?
----@param part ModelPart?
----@param init FOXSkullAPI.events.any?
----@param render FOXSkull.render.any?
----@param tick FOXSkull.tick.any?
----@param onPunch FOXSkull.onPunch.any?
----@overload fun(key: string, class: "block", part: ModelPart?, init: FOXSkullAPI.events.block?, render: FOXSkull.render.block?, tick: FOXSkull.tick.block?, onPunch: FOXSkull.onPunch.block?)
----@overload fun(key: string, class: "item", part: ModelPart?, init: FOXSkullAPI.events.item?, render: FOXSkull.render.item?, tick: FOXSkull.tick.item?, onPunch: FOXSkull.onPunch.item?)
-function skulls.newMode(key, class, part, init, render, tick, onPunch)
-	class = class or "any"
-
-	assert(type(key) == "string", "String expected for param [1], got " .. type(key), 2)
-	assert(type(class) == "string", "String expected for param [2], got " .. type(class), 2)
-	assert(not part or type(part) == "ModelPart" or type(part) == "table",
-		"ModelPart expected for param [3], got " .. type(part), 2)
-	assert(not render or type(render) == "function", "Function expected for param [4], got " .. type(render), 2)
-	assert(not tick or type(tick) == "function", "Function expected for param [5], got " .. type(tick), 2)
-	assert(not onPunch or type(onPunch) == "function", "Function expected for param [6], got " .. type(onPunch), 2)
-
-	---@type FOXSkullAPI.events.any
-	skulls[classKeys[class]] = function(self)
-		local mode = self:getVariable("mode") or self:getName()
-		if not mode:lower():find(key:lower()) then return end
-
-		self:model(part)
-
-		init(self)
-		self.tick = tick
-		self.render = render
-		self.onPunch = onPunch
-	end
-end
 
 ---Sets the ModelPart to use as the default for skulls
 ---@param model ModelPart?
