@@ -14,6 +14,7 @@ function class:withName(name)
 	self[#self + 1] = function(skull)
 		return skull.name == name
 	end
+
 	return self
 end
 

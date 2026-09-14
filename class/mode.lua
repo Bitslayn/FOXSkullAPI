@@ -23,6 +23,7 @@ function lib.newMode(name, filter)
 		name = name,
 		filter = filter,
 	}, class)
+
 	return lib.modes[name]
 end
 
