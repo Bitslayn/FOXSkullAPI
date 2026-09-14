@@ -4,7 +4,7 @@
 local class = {}
 class.__index = class
 
----@alias FOXSkull.Filter.func fun(skull: FOXSkull.Skull.Any): (match: boolean)
+---@alias FOXSkull.Filter.func fun(skull: FOXSkull.Skull): (match: boolean)
 
 ---@param name string
 ---@return self
