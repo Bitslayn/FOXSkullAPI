@@ -1,6 +1,7 @@
 ---@diagnostic disable: invisible
 
 local skull = require("./class/skull")
+local modes = require("./class/mode")
 
 local blocks = {}
 local items = {}

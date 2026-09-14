@@ -4,6 +4,8 @@
 local class = {}
 class.__index = class
 
+local lib = {}
+
 ---@alias FOXSkull.Filter.func fun(skull: FOXSkull.Skull): (match: boolean)
 
 ---@param name string
@@ -16,6 +18,8 @@ function class:withName(name)
 end
 
 ---@return FOXSkull.Filter
-return function()
+function lib.newFilter()
 	return setmetatable({}, class)
 end
+
+return lib
