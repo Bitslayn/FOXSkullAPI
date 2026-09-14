@@ -1,6 +1,7 @@
 ---@class FOXSkull.Skull
 ---@field name string
----@field ctx string
+---@field model ModelPart
+---@field private render fun(delta: number, skull: FOXSkull.Skull.Any, ctx: Event.SkullRender.context)
 ---@field private __index FOXSkull.Skull
 local class = {}
 class.__index = class
@@ -11,21 +12,37 @@ class.__index = class
 
 local lib = {}
 
----@param b BlockState
+lib.defaultModel = models:newPart("Skull")
+lib.blockHash = vec(1, 999, 9999999)
+
+---@param tbl table
+---@param key string
+---@param block BlockState
 ---@return FOXSkull.Skull.Block
-function lib.newBlock(b)
-	local nbt = b:getEntityData()
-	return setmetatable({
-		name = nbt and nbt.display and nbt.display.Name
-	}, class) --[[@as FOXSkull.Skull.Block]]
+function lib.newBlock(tbl, key, block)
+	local nbt = block:getEntityData()
+
+	tbl[key] = setmetatable({
+		name = nbt and nbt.display and nbt.display.Name,
+		model = lib.defaultModel,
+		render = function() end,
+	}, class)
+
+	return tbl[key]
 end
 
----@param i ItemStack
+---@param tbl table
+---@param key string
+---@param item ItemStack
 ---@return FOXSkull.Skull.Item
-function lib.newItem(i)
-	return setmetatable({
-		name = i:getName()
+function lib.newItem(tbl, key, item)
+	tbl[key] = setmetatable({
+		name = item:getName(),
+		model = lib.defaultModel,
+		render = function() end,
 	}, class) --[[@as FOXSkull.Skull.Item]]
+
+	return tbl[key]
 end
 
 return lib
