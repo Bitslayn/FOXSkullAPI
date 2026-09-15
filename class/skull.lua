@@ -1,12 +1,15 @@
----@class FOXSkull.Skull
+---@class FOXSkull.Skull: FOXSkull.SkullMode
 ---@field name string
 ---@field model ModelPart
----@field private render fun(delta: number, skull: FOXSkull.Skull, ctx: Event.SkullRender.context)
+---@field render fun(delta: number, skull: FOXSkull.Skull, ctx: Event.SkullRender.context)
+---@field init fun(skull: FOXSkull.Skull)
 ---@field private __index FOXSkull.Skull
 local class = {}
 class.__index = class
 
 local lib = {}
+
+local mode = require("./mode")
 
 lib.defaultModel = models:newPart("Skull")
 lib.blockHash = vec(1, 999, 9999999)
@@ -18,11 +21,14 @@ lib.blockHash = vec(1, 999, 9999999)
 function lib.newBlock(tbl, key, block)
 	local nbt = block:getEntityData()
 
-	tbl[key] = setmetatable({
-		name = nbt and nbt.display and nbt.display.Name,
+	tbl[key] = {
+		name = nbt and nbt.display and nbt.display.Name or "Player Head",
 		model = lib.defaultModel,
-		render = function() end,
-	}, class)
+	}
+
+	setmetatable(tbl[key], { __index = mode.matchMode(tbl[key]) })
+
+	tbl[key].init(tbl[key])
 
 	return tbl[key]
 end
@@ -32,11 +38,14 @@ end
 ---@param item ItemStack
 ---@return FOXSkull.Skull
 function lib.newItem(tbl, key, item)
-	tbl[key] = setmetatable({
+	tbl[key] = {
 		name = item:getName(),
 		model = lib.defaultModel,
-		render = function() end,
-	}, class)
+	}
+
+	setmetatable(tbl[key], { __index = mode.matchMode(tbl[key]) })
+
+	tbl[key].init(tbl[key])
 
 	return tbl[key]
 end
